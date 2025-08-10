@@ -1,0 +1,255 @@
+<script>
+  import { page } from '$app/stores';
+  import { currentLanguage, translations, toggleLanguage } from '../stores/language.js';
+  import { Globe, ChevronDown, Check, User } from 'lucide-svelte';
+  
+  $: currentPath = $page.url.pathname;
+  $: language = $currentLanguage;
+  $: currentTranslations = translations[language] || translations.ms;
+  let showMobileMenu = false;
+  let showLanguageDropdown = false;
+
+  function toggleMobileMenu() {
+    showMobileMenu = !showMobileMenu;
+  }
+
+  function closeMobileMenu() {
+    showMobileMenu = false;
+  }
+
+  function toggleLanguageDropdown() {
+    showLanguageDropdown = !showLanguageDropdown;
+  }
+
+  function closeLanguageDropdown() {
+    showLanguageDropdown = false;
+  }
+
+  function selectLanguage(lang) {
+    currentLanguage.set(lang);
+    showLanguageDropdown = false;
+  }
+
+  function t(key) {
+    return currentTranslations[key] || key;
+  }
+
+  // Close dropdown when clicking outside
+  function handleClickOutside(event) {
+    if (showLanguageDropdown && !event.target.closest('.language-dropdown-container')) {
+      showLanguageDropdown = false;
+    }
+  }
+</script>
+
+<svelte:window on:click={handleClickOutside} />
+
+<!-- Main Navigation -->
+<nav class="bg-gray-900 border-b border-gray-700 px-5 h-15 flex items-center">
+  <div class="flex justify-between items-center w-full max-w-6xl mx-auto">
+    <!-- Left Side: Logo & Navigation -->
+    <div class="flex items-center gap-8">
+      <!-- Logo -->
+      <div class="flex items-center gap-2">
+        <span class="text-white font-bold text-lg">CRMBooking</span>
+        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+      </div>
+      
+      <!-- Desktop Navigation Links -->
+      <div class="hidden md:flex gap-8">
+        <a 
+          href="/" 
+          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/' ? 'text-gray-200' : ''}"
+        >
+          {t('home')}
+          {#if currentPath === '/'}
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+          {/if}
+        </a>
+        <a 
+          href="/booking-manager" 
+          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/booking-manager' ? 'text-gray-200' : ''}"
+        >
+          {t('booking_manager')}
+          {#if currentPath === '/booking-manager'}
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+          {/if}
+        </a>
+        <a 
+          href="/contact-manager" 
+          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/contact-manager' ? 'text-gray-200' : ''}"
+        >
+          {t('contact_manager')}
+          {#if currentPath === '/contact-manager'}
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+          {/if}
+        </a>
+        <a 
+          href="/settings" 
+          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/settings' ? 'text-gray-200' : ''}"
+        >
+          {t('settings')}
+          {#if currentPath === '/settings'}
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+          {/if}
+        </a>
+        <a 
+          href="/context-manager" 
+          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/context-manager' ? 'text-gray-200' : ''}"
+        >
+          {t('context_manager')}
+          {#if currentPath === '/context-manager'}
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+          {/if}
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Side: Language Selector & User Avatar -->
+    <div class="flex items-center gap-4">
+      <!-- Language Dropdown -->
+      <div class="relative language-dropdown-container">
+        <button 
+          class="flex items-center gap-2 border border-gray-700 hover:border-green-500 hover:text-green-500 rounded-md px-3 py-1.5 text-gray-400 text-sm cursor-pointer transition-all duration-200 md:gap-1.5 md:px-2 md:py-1 md:text-xs"
+          on:click={toggleLanguageDropdown}
+        >
+          <Globe size={14} />
+          <span class="font-medium hidden md:inline">{language === 'ms' ? 'MS' : 'EN'}</span>
+          <ChevronDown 
+            size={10} 
+            class="transition-transform duration-200 {showLanguageDropdown ? 'rotate-180' : 'rotate-0'}" 
+          />
+        </button>
+        
+        <!-- Language Options Dropdown -->
+        {#if showLanguageDropdown}
+          <div 
+            class="absolute top-full right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl min-w-45 z-50 overflow-hidden"
+            on:click|stopPropagation
+          >
+            <div 
+              class="flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 border-b border-gray-700 hover:bg-gray-800 hover:text-green-500 {language === 'ms' ? 'bg-green-500 text-gray-900' : ''}"
+              on:click={() => selectLanguage('ms')}
+            >
+              <span class="text-base">🇲🇾</span>
+              <span class="flex-1 text-sm font-medium">Bahasa Melayu</span>
+              {#if language === 'ms'}
+                <Check size={12} class="font-bold" />
+              {/if}
+            </div>
+            <div 
+              class="flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 hover:bg-gray-800 hover:text-green-500 {language === 'en' ? 'bg-green-500 text-gray-900' : ''}"
+              on:click={() => selectLanguage('en')}
+            >
+              <span class="text-base">🇺🇸</span>
+              <span class="flex-1 text-sm font-medium">English</span>
+              {#if language === 'en'}
+                <Check size={12} class="font-bold" />
+              {/if}
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <!-- User Avatar -->
+      <div 
+        class="text-green-500 hover:text-green-600 hover:border-green-600 cursor-pointer transition-colors duration-200 bg-gray-900 border-2 border-green-500 rounded-full w-9 h-9 flex items-center justify-center"
+        on:click={toggleMobileMenu}
+      >
+        <User size={16} />
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- User Account Modal -->
+{#if showMobileMenu}
+  <div 
+    class="fixed inset-0 bg-black/ flex items-start justify-end z-50 p-5"
+    on:click={closeMobileMenu}
+  >
+    <div 
+      class="bg-gray-900 rounded-lg p-5 w-70 border border-gray-700 shadow-2xl mt-15"
+      on:click|stopPropagation
+    >
+      <!-- User Information Section -->
+      <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-700">
+        <div class="flex-shrink-0">
+          <div class="w-10 h-10 rounded-full relative bg-teal-600 flex items-center justify-center overflow-hidden">
+            <!-- Background teal circle -->
+            <div class="absolute inset-0 bg-teal-600 rounded-full"></div>
+            <!-- Green crescent overlay -->
+            <div class="absolute top-0 right-0 w-5 h-5 bg-green-500" style="border-radius: 50% 0 0 50%;"></div>
+            <!-- User icon -->
+            <User size={16} class="relative z-10 text-white" />
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-gray-200 text-sm font-semibold mb-0.5 truncate">
+            MUKHAMMAD AKHMA...
+          </div>
+          <div class="text-gray-400 text-xs mb-1 truncate">
+            boesstom@gmail.com
+          </div>
+        </div>
+      </div>
+      
+      <!-- Account Options -->
+      <div class="flex flex-col">
+        <a 
+          href="/" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('my_account')}
+        </a>
+        <a 
+          href="/logout" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200"
+          on:click={closeMobileMenu}
+        >
+          {t('logout')}
+        </a>
+      </div>
+      
+      <!-- Mobile Navigation (visible only on mobile) -->
+      <div class="flex flex-col mt-4 pt-4 border-t border-gray-700 md:hidden">
+        <a 
+          href="/" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('home')}
+        </a>
+        <a 
+          href="/booking-manager" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/booking-manager' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('booking_manager')}
+        </a>
+        <a 
+          href="/contact-manager" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/contact-manager' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('contact_manager')}
+        </a>
+        <a 
+          href="/settings" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/settings' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('settings')}
+        </a>
+        <a 
+          href="/context-manager" 
+          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/context-manager' ? 'text-green-500' : ''}"
+          on:click={closeMobileMenu}
+        >
+          {t('context_manager')}
+        </a>
+      </div>
+    </div>
+  </div>
+{/if}
