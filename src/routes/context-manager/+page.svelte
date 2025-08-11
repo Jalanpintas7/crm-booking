@@ -4,6 +4,47 @@
   
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
+  
+  // Create reactive variables for all translated text to ensure immediate updates
+  $: contextManagerText = currentTranslations['context_manager'] || 'context_manager';
+  $: addContextText = currentTranslations['add_context'] || 'add_context';
+  $: editContextText = currentTranslations['edit_context'] || 'edit_context';
+  $: deleteContextText = currentTranslations['delete_context'] || 'delete_context';
+  $: contextNameText = currentTranslations['context_name'] || 'context_name';
+  $: contextDescriptionText = currentTranslations['context_description'] || 'context_description';
+  $: customFieldsText = currentTranslations['custom_fields'] || 'custom_fields';
+  $: addCustomFieldText = currentTranslations['add_custom_field'] || 'add_custom_field';
+  $: fieldTitleText = currentTranslations['field_title'] || 'field_title';
+  $: fieldValueText = currentTranslations['field_value'] || 'field_value';
+  $: saveText = currentTranslations['save'] || 'save';
+  $: cancelText = currentTranslations['cancel'] || 'cancel';
+  $: closeText = currentTranslations['close'] || 'close';
+  $: searchText = currentTranslations['search'] || 'search';
+  $: filterText = currentTranslations['filter'] || 'filter';
+  $: noContextsText = currentTranslations['no_contexts'] || 'no_contexts';
+  $: addNewContextText = currentTranslations['add_new_context'] || 'add_new_context';
+  $: contextDetailsText = currentTranslations['context_details'] || 'context_details';
+  $: confirmDeleteText = currentTranslations['confirm_delete'] || 'confirm_delete';
+  $: deleteWarningText = currentTranslations['delete_warning'] || 'delete_warning';
+  $: yesText = currentTranslations['yes'] || 'yes';
+  $: noText = currentTranslations['no'] || 'no';
+  $: successText = currentTranslations['success'] || 'success';
+  $: errorText = currentTranslations['error'] || 'error';
+  $: contextAddedText = currentTranslations['context_added'] || 'context_added';
+  $: contextUpdatedText = currentTranslations['context_updated'] || 'context_updated';
+  $: contextDeletedText = currentTranslations['context_deleted'] || 'context_deleted';
+  
+  // Force immediate reactivity when language changes
+  $: {
+    if (language) {
+      // This ensures all translated text updates immediately when language changes
+      contextManagerText, addContextText, editContextText, deleteContextText, contextNameText,
+      contextDescriptionText, customFieldsText, addCustomFieldText, fieldTitleText, fieldValueText,
+      saveText, cancelText, closeText, searchText, filterText, noContextsText, addNewContextText,
+      contextDetailsText, confirmDeleteText, deleteWarningText, yesText, noText, successText,
+      errorText, contextAddedText, contextUpdatedText, contextDeletedText;
+    }
+  }
 
   function t(key) {
     return currentTranslations[key] || key;
@@ -163,9 +204,9 @@
 
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
   <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-8 px-5 max-w-6xl mx-auto">
-    <h1 class="text-3xl md:text-2xl font-semibold text-gray-200 m-0">Pengurus Konteks</h1>
+    <h1 class="text-3xl md:text-2xl font-semibold text-gray-200 m-0">{contextManagerText}</h1>
     <button class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600 w-full md:w-auto" on:click={() => showForm = true}>
-      + Tambah Konteks
+      + {addContextText}
     </button>
   </div>
 

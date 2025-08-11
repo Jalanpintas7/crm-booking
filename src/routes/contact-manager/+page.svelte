@@ -6,9 +6,141 @@
   
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
+  
+  // Create reactive variables for all translated text to ensure immediate updates
+  $: pageTitleText = currentTranslations['page_title'] || 'page_title';
+  $: addContactText = currentTranslations['add_contact'] || 'add_contact';
+  $: searchText = currentTranslations['search'] || 'search';
+  $: filterText = currentTranslations['filter'] || 'filter';
+  $: viewText = currentTranslations['view'] || 'view';
+  $: editText = currentTranslations['edit'] || 'edit';
+  $: deleteText = currentTranslations['delete'] || 'delete';
+  $: saveText = currentTranslations['save'] || 'save';
+  $: cancelText = currentTranslations['cancel'] || 'cancel';
+  $: closeText = currentTranslations['close'] || 'close';
+  $: nameText = currentTranslations['name'] || 'name';
+  $: emailText = currentTranslations['email'] || 'email';
+  $: phoneText = currentTranslations['phone'] || 'phone';
+  $: actionsText = currentTranslations['actions'] || 'actions';
+  $: loadingText = currentTranslations['loading'] || 'loading';
+  $: noContactsText = currentTranslations['no_contacts'] || 'no_contacts';
+  $: addNewContactText = currentTranslations['add_new_contact'] || 'add_new_contact';
+  $: contactDetailsText = currentTranslations['contact_details'] || 'contact_details';
+  $: editContactText = currentTranslations['edit_contact'] || 'edit_contact';
+  $: deleteContactText = currentTranslations['delete_contact'] || 'delete_contact';
+  $: confirmDeleteText = currentTranslations['confirm_delete'] || 'confirm_delete';
+  $: deleteWarningText = currentTranslations['delete_warning'] || 'delete_warning';
+  $: yesText = currentTranslations['yes'] || 'yes';
+  $: noText = currentTranslations['no'] || 'no';
+  $: successText = currentTranslations['success'] || 'success';
+  $: errorText = currentTranslations['error'] || 'error';
+  $: contactAddedText = currentTranslations['contact_added'] || 'contact_added';
+  $: contactUpdatedText = currentTranslations['contact_updated'] || 'contact_updated';
+  $: contactDeletedText = currentTranslations['contact_deleted'] || 'contact_deleted';
+  $: failedLoadContactsText = currentTranslations['failed_load_contacts'] || 'failed_load_contacts';
+  $: failedAddContactText = currentTranslations['failed_add_contact'] || 'failed_add_contact';
+  $: failedUpdateContactText = currentTranslations['failed_update_contact'] || 'failed_update_contact';
+  $: failedDeleteContactText = currentTranslations['failed_delete_contact'] || 'failed_delete_contact';
+  $: cardViewText = currentTranslations['card_view'] || 'card_view';
+  $: tableViewText = currentTranslations['table_view'] || 'table_view';
+  $: cardText = currentTranslations['card'] || 'card';
+  $: tableText = currentTranslations['table'] || 'table';
+  $: addContactButtonText = currentTranslations['add_contact'] || 'add_contact';
+  $: switchViewText = currentTranslations['switch_view'] || 'switch_view';
+  $: selectAllText = currentTranslations['select_all'] || 'select_all';
+  $: selectedText = currentTranslations['selected'] || 'selected';
+  $: deleteSelectedText = currentTranslations['delete_selected'] || 'delete_selected';
+  $: addNewContactText = currentTranslations['add_new_contact'] || 'add_new_contact';
+  $: nameLabelText = currentTranslations['name'] || 'name';
+  $: whatsappLabelText = currentTranslations['whatsapp'] || 'whatsapp';
+  $: emailLabelText = currentTranslations['email'] || 'email';
+  $: optionalText = currentTranslations['optional'] || 'optional';
+  $: enterNameText = currentTranslations['enter_name'] || 'enter_name';
+  $: enterWhatsappText = currentTranslations['enter_whatsapp'] || 'enter_whatsapp';
+  $: enterEmailText = currentTranslations['enter_email'] || 'enter_email';
+  $: onlyNumbersAllowedText = currentTranslations['only_numbers_allowed'] || 'only_numbers_allowed';
+  $: cancelText = currentTranslations['cancel'] || 'cancel';
+  $: saveContactText = currentTranslations['save_contact'] || 'save_contact';
+  $: tryAgainText = currentTranslations['try_again'] || 'try_again';
+  $: loadingContactsText = currentTranslations['loading_contacts'] || 'loading_contacts';
+  $: noContactsText = currentTranslations['no_contacts'] || 'no_contacts';
+  $: clickAddContactText = currentTranslations['click_add_contact'] || 'click_add_contact';
+  $: viewText = currentTranslations['view'] || 'view';
+  $: editText = currentTranslations['edit'] || 'edit';
+  $: deleteText = currentTranslations['delete'] || 'delete';
+  $: selectText = currentTranslations['select'] || 'select';
+  $: actionsText = currentTranslations['actions'] || 'actions';
+  $: contactDetailsText = currentTranslations['contact_details'] || 'contact_details';
+  $: closeText = currentTranslations['close'] || 'close';
+  $: editContactText = currentTranslations['edit_contact'] || 'edit_contact';
+  $: saveChangesText = currentTranslations['save_changes'] || 'save_changes';
+  $: failedLoadContactsText = currentTranslations['failed_load_contacts'] || 'failed_load_contacts';
+  $: failedAddContactText = currentTranslations['failed_add_contact'] || 'failed_add_contact';
+  $: failedUpdateContactText = currentTranslations['failed_update_contact'] || 'failed_update_contact';
+  $: failedDeleteContactText = currentTranslations['failed_delete_contact'] || 'failed_delete_contact';
+  $: failedDeleteSelectedText = currentTranslations['failed_delete_selected'] || 'failed_delete_selected';
+  
+  // Force immediate reactivity when language changes
+  $: {
+    if (language) {
+      // This ensures all translated text updates immediately when language changes
+      pageTitleText, addContactText, searchText, filterText, viewText, editText, deleteText,
+      saveText, cancelText, closeText, nameText, emailText, phoneText, actionsText,
+      loadingText, noContactsText, addNewContactText, contactDetailsText, editContactText,
+      deleteContactText, confirmDeleteText, deleteWarningText, yesText, noText,
+      successText, errorText, contactAddedText, contactUpdatedText, contactDeletedText,
+      failedLoadContactsText, failedAddContactText, failedUpdateContactText, failedDeleteContactText,
+      cardViewText, tableViewText, cardText, tableText, addContactButtonText,
+      switchViewText, selectAllText, selectedText, deleteSelectedText, addNewContactText,
+      nameLabelText, whatsappLabelText, emailLabelText, optionalText, enterNameText,
+      enterWhatsappText, enterEmailText, onlyNumbersAllowedText, cancelText, saveContactText,
+      tryAgainText, loadingContactsText, noContactsText, clickAddContactText, viewText,
+      editText, deleteText, selectText, actionsText, contactDetailsText, closeText,
+      editContactText, saveChangesText, failedLoadContactsText, failedAddContactText,
+      failedUpdateContactText, failedDeleteContactText, failedDeleteSelectedText;
+    }
+  }
 
   function t(key) {
     return currentTranslations[key] || key;
+  }
+
+  // Function to restrict input to numbers only
+  function restrictToNumbers(event) {
+    const input = event.target;
+    const value = input.value;
+    const numbersOnly = value.replace(/[^0-9]/g, '');
+    
+    if (value !== numbersOnly) {
+      input.value = numbersOnly;
+      // Update the bound value for Svelte
+      if (input.id === 'whatsapp') {
+        formData.whatsapp = numbersOnly;
+      } else if (input.id === 'edit-whatsapp') {
+        editData.whatsapp = numbersOnly;
+      }
+    }
+    
+    // Limit length to reasonable phone number length (max 15 digits)
+    if (numbersOnly.length > 15) {
+      const truncated = numbersOnly.substring(0, 15);
+      input.value = truncated;
+      if (input.id === 'whatsapp') {
+        formData.whatsapp = truncated;
+      } else if (input.id === 'edit-whatsapp') {
+        editData.whatsapp = truncated;
+      }
+    }
+  }
+
+  // Function to prevent non-numeric key presses
+  function preventNonNumeric(event) {
+    const key = event.key;
+    const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    
+    if (!allowedKeys.includes(key)) {
+      event.preventDefault();
+    }
   }
 
   let contacts = [];
@@ -40,10 +172,10 @@
       loading = true;
       error = null;
       contacts = await getContacts();
-    } catch (err) {
-      error = 'Gagal memuat data kontak. Silakan coba lagi.';
-      console.error('Error loading contacts:', err);
-    } finally {
+         } catch (err) {
+       error = failedLoadContactsText;
+       console.error('Error loading contacts:', err);
+     } finally {
       loading = false;
     }
   }
@@ -71,10 +203,10 @@
           email: ''
         };
         showForm = false;
-      } catch (err) {
-        error = 'Gagal menambah kontak. Silakan coba lagi.';
-        console.error('Error adding contact:', err);
-      }
+             } catch (err) {
+         error = failedAddContactText;
+         console.error('Error adding contact:', err);
+       }
     }
   }
 
@@ -84,10 +216,10 @@
       contacts = contacts.filter(contact => contact.id !== id);
       const { [id]: _removed, ...rest } = selectedIds;
       selectedIds = rest;
-    } catch (err) {
-      error = 'Gagal menghapus kontak. Silakan coba lagi.';
-      console.error('Error deleting contact:', err);
-    }
+         } catch (err) {
+       error = failedDeleteContactText;
+       console.error('Error deleting contact:', err);
+     }
   }
 
   function openViewModal(contact) {
@@ -116,11 +248,11 @@
       });
       
       contacts = contacts.map((c) => (c.id === editData.id ? updatedContact : c));
-      showEditModal = false;
-    } catch (err) {
-      error = 'Gagal memperbarui kontak. Silakan coba lagi.';
-      console.error('Error updating contact:', err);
-    }
+             showEditModal = false;
+     } catch (err) {
+       error = failedUpdateContactText;
+       console.error('Error updating contact:', err);
+     }
   }
 
   function toggleSelectAll() {
@@ -145,44 +277,44 @@
       await Promise.all(idsToDelete.map(id => deleteContact(id)));
       
       contacts = contacts.filter((c) => !idsToDelete.includes(c.id));
-      selectedIds = {};
-    } catch (err) {
-      error = 'Gagal menghapus kontak terpilih. Silakan coba lagi.';
-      console.error('Error bulk deleting contacts:', err);
-    }
+             selectedIds = {};
+     } catch (err) {
+       error = failedDeleteSelectedText;
+       console.error('Error bulk deleting contacts:', err);
+     }
   }
 </script>
 
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
   <div class="flex justify-between items-center mb-8 px-5 max-w-6xl mx-auto">
-    <h1 class="text-3xl font-semibold text-gray-200">{t('page_title')}</h1>
+    <h1 class="text-3xl font-semibold text-gray-200">{pageTitleText}</h1>
     <div class="flex items-center gap-3">
-      <div class="inline-flex bg-gray-900 border border-gray-700 rounded-lg overflow-hidden" role="group" aria-label="Tukar tampilan">
+      <div class="inline-flex bg-gray-900 border border-gray-700 rounded-lg overflow-hidden" role="group" aria-label={switchViewText}>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-2 bg-transparent border-none text-gray-200 cursor-pointer hover:bg-gray-800 {viewMode === 'card' ? 'bg-gray-800 text-green-500' : ''}"
           on:click={() => viewMode = 'card'}
           aria-pressed={viewMode === 'card'}
-          title="Tampilan Kartu"
+          title={cardViewText}
         >
           <LayoutGrid size={16} />
-          Kartu
+          {cardText}
         </button>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-2 bg-transparent border-none text-gray-200 cursor-pointer hover:bg-gray-800 {viewMode === 'table' ? 'bg-gray-800 text-green-500' : ''}"
           on:click={() => viewMode = 'table'}
           aria-pressed={viewMode === 'table'}
-          title="Tampilan Tabel"
+          title={tableViewText}
         >
           <TableIcon size={16} />
-          Tabel
+          {tableText}
         </button>
       </div>
 
       <button class="flex items-center gap-1 bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" on:click={() => showForm = true}>
         <UserPlus size={16} />
-        Tambah Kenalan
+        {addContactButtonText}
       </button>
     </div>
   </div>
@@ -191,13 +323,13 @@
     <div class="flex justify-between items-center py-2.5 px-5 bg-green-950 border border-green-900 text-green-200 rounded-lg max-w-6xl mx-auto mb-4">
       <div class="flex items-center gap-2">
         <input id="select-all-top" type="checkbox" checked={isAllSelected} on:change={toggleSelectAll} />
-        <label for="select-all-top">Pilih semua</label>
-        <span class="ml-2 text-sm text-gray-400">{selectedCount} dipilih</span>
+        <label for="select-all-top">{selectAllText}</label>
+        <span class="ml-2 text-sm text-gray-400">{selectedCount} {selectedText}</span>
       </div>
       <div class="flex items-center gap-2">
-        <button class="flex items-center gap-1 bg-red-500 text-white border-none px-3.5 py-2.5 rounded-md text-sm hover:bg-red-600 transition-colors" on:click={bulkDeleteSelected} title="Padam yang dipilih">
-          <Trash2 size={16} /> Hapus Terpilih
-        </button>
+                  <button class="flex items-center gap-1 bg-red-500 text-white border-none px-3.5 py-2.5 rounded-md text-sm hover:bg-red-600 transition-colors" on:click={bulkDeleteSelected} title={deleteSelectedText}>
+            <Trash2 size={16} /> {deleteSelectedText}
+          </button>
       </div>
     </div>
   {/if}
@@ -212,52 +344,55 @@
     >
       <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl text-gray-200">Tambah Kenalan Baru</h2>
+          <h2 class="text-xl text-gray-200">{addNewContactText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showForm = false}>×</button>
         </div>
         
         <form class="flex flex-col gap-5" on:submit|preventDefault={addContact}>
           <div class="flex flex-col gap-2">
-            <label for="name" class="text-sm font-medium text-gray-200">Nama</label>
+            <label for="name" class="text-sm font-medium text-gray-200">{nameLabelText}</label>
             <input 
               type="text" 
               id="name"
               bind:value={formData.name}
-              placeholder="Masukkan nama"
+              placeholder={enterNameText}
               required
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
             />
           </div>
           
           <div class="flex flex-col gap-2">
-            <label for="whatsapp" class="text-sm font-medium text-gray-200">WhatsApp</label>
+            <label for="whatsapp" class="text-sm font-medium text-gray-200">{whatsappLabelText}</label>
             <input 
               type="tel" 
               id="whatsapp"
               bind:value={formData.whatsapp}
-              placeholder="Masukkan nombor WhatsApp"
+              placeholder={enterWhatsappText}
               required
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
+              on:input={restrictToNumbers}
+              on:keydown={preventNonNumeric}
             />
+            <p class="text-xs text-gray-500">{onlyNumbersAllowedText}</p>
           </div>
           
           <div class="flex flex-col gap-2">
-            <label for="email" class="text-sm font-medium text-gray-200">Email (Opsional)</label>
+            <label for="email" class="text-sm font-medium text-gray-200">{emailLabelText} ({optionalText})</label>
             <input 
               type="email" 
               id="email"
               bind:value={formData.email}
-              placeholder="Masukkan email"
+              placeholder={enterEmailText}
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
             />
           </div>
           
           <div class="flex gap-3 justify-end mt-2.5">
             <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showForm = false}>
-              Batal
+              {cancelText}
             </button>
             <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">
-              Simpan Kenalan
+              {saveContactText}
             </button>
           </div>
         </form>
@@ -268,20 +403,20 @@
   {#if error}
     <div class="bg-red-600 text-white px-5 py-3 rounded-md mx-auto mb-5 max-w-6xl flex justify-between items-center">
       <p class="text-sm">{error}</p>
-      <button class="bg-white/20 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-white/30 transition-colors" on:click={loadContacts}>Coba Lagi</button>
+      <button class="bg-white/20 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-white/30 transition-colors" on:click={loadContacts}>{tryAgainText}</button>
     </div>
   {/if}
 
   <div class="mt-5 px-5 max-w-6xl mx-auto">
     {#if loading}
       <div class="text-center py-16 text-gray-400">
-        <p class="text-base">Memuat kontak...</p>
+        <p class="text-base">{loadingContactsText}</p>
       </div>
     {:else if contacts.length === 0}
       <div class="text-center py-16 text-gray-400">
         <Users size={32} class="mx-auto mb-5" />
-        <h3 class="text-lg text-gray-200 mb-2.5">Tiada kenalan lagi</h3>
-        <p class="text-sm">Klik "Tambah Kenalan" untuk menambah kenalan pertama anda</p>
+        <h3 class="text-lg text-gray-200 mb-2.5">{noContactsText}</h3>
+        <p class="text-sm">{clickAddContactText}</p>
       </div>
     {:else}
       {#if viewMode === 'card'}
@@ -294,18 +429,18 @@
                     type="checkbox"
                     checked={!!selectedIds[contact.id]}
                     on:change={(e) => (selectedIds = { ...selectedIds, [contact.id]: e.target.checked })}
-                    aria-label={`Pilih ${contact.name}`}
+                    aria-label={`${selectText} ${contact.name}`}
                   />
                   <h3 class="text-lg font-semibold text-gray-200">{contact.name}</h3>
                 </div>
                 <div class="flex items-center gap-2">
-                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title="Lihat" on:click={() => openViewModal(contact)}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title={viewText} on:click={() => openViewModal(contact)}>
                     <Eye size={16} />
                   </button>
-                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title="Edit" on:click={() => openEditModal(contact)}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title={editText} on:click={() => openEditModal(contact)}>
                     <Edit size={16} />
                   </button>
-                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-red-500 bg-gray-900 text-red-500 hover:border-red-600 transition-colors" title="Padam" on:click={() => deleteContactHandler(contact.id)}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-md border border-red-500 bg-gray-900 text-red-500 hover:border-red-600 transition-colors" title={deleteText} on:click={() => deleteContactHandler(contact.id)}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -333,10 +468,10 @@
                 <th class="w-10 px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">
                   <input id="select-all" type="checkbox" checked={isAllSelected} on:change={toggleSelectAll} />
                 </th>
-                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">Nama</th>
-                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">WhatsApp</th>
-                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">Email</th>
-                <th class="w-36 px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-right">Aksi</th>
+                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">{nameLabelText}</th>
+                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">{whatsappLabelText}</th>
+                <th class="px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">{emailLabelText}</th>
+                <th class="w-36 px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-right">{actionsText}</th>
               </tr>
             </thead>
             <tbody>
@@ -347,7 +482,7 @@
                       type="checkbox"
                       checked={!!selectedIds[contact.id]}
                       on:change={(e) => (selectedIds = { ...selectedIds, [contact.id]: e.target.checked })}
-                      aria-label={`Pilih ${contact.name}`}
+                      aria-label={`${selectText} ${contact.name}`}
                     />
                   </td>
                   <td class="px-3 py-3 border-b border-gray-700 text-gray-200">{contact.name}</td>
@@ -355,13 +490,13 @@
                   <td class="px-3 py-3 border-b border-gray-700 text-gray-200">{contact.email || '-'}</td>
                   <td class="px-3 py-3 border-b border-gray-700 text-right">
                     <div class="flex items-center gap-2 justify-end">
-                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title="Lihat" on:click={() => openViewModal(contact)}>
+                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title={viewText} on:click={() => openViewModal(contact)}>
                         <Eye size={16} />
                       </button>
-                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title="Edit" on:click={() => openEditModal(contact)}>
+                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500 transition-colors" title={editText} on:click={() => openEditModal(contact)}>
                         <Edit size={16} />
                       </button>
-                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-red-500 bg-gray-900 text-red-500 hover:border-red-600 transition-colors" title="Padam" on:click={() => deleteContactHandler(contact.id)}>
+                      <button class="flex items-center justify-center w-8 h-8 rounded-md border border-red-500 bg-gray-900 text-red-500 hover:border-red-600 transition-colors" title={deleteText} on:click={() => deleteContactHandler(contact.id)}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -385,27 +520,27 @@
     >
       <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl text-gray-200">Detail Kenalan</h2>
+          <h2 class="text-xl text-gray-200">{contactDetailsText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => (showViewModal = false)}>×</button>
         </div>
         <div class="flex flex-col gap-2">
           <div class="flex justify-between items-center">
-            <span class="text-sm text-gray-400">Nama:</span>
+            <span class="text-sm text-gray-400">{nameLabelText}:</span>
             <span class="text-sm font-medium text-gray-200">{viewContact.name}</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-sm text-gray-400">WhatsApp:</span>
+            <span class="text-sm text-gray-400">{whatsappLabelText}:</span>
             <span class="text-sm font-medium text-gray-200">{viewContact.whatsapp}</span>
           </div>
           {#if viewContact.email}
             <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-400">Email:</span>
+              <span class="text-sm text-gray-400">{emailLabelText}:</span>
               <span class="text-sm font-medium text-gray-200">{viewContact.email}</span>
             </div>
           {/if}
         </div>
         <div class="flex justify-end mt-2.5">
-          <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => (showViewModal = false)}>Tutup</button>
+          <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => (showViewModal = false)}>{closeText}</button>
         </div>
       </div>
     </div>
@@ -421,45 +556,48 @@
     >
       <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl text-gray-200">Edit Kenalan</h2>
+          <h2 class="text-xl text-gray-200">{editContactText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => (showEditModal = false)}>×</button>
         </div>
         <form class="flex flex-col gap-5" on:submit|preventDefault={saveEdit}>
           <div class="flex flex-col gap-2">
-            <label for="edit-name" class="text-sm font-medium text-gray-200">Nama</label>
+            <label for="edit-name" class="text-sm font-medium text-gray-200">{nameLabelText}</label>
             <input
               id="edit-name"
               type="text"
               bind:value={editData.name}
-              placeholder="Masukkan nama"
+              placeholder={enterNameText}
               required
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
             />
           </div>
           <div class="flex flex-col gap-2">
-            <label for="edit-whatsapp" class="text-sm font-medium text-gray-200">WhatsApp</label>
+            <label for="edit-whatsapp" class="text-sm font-medium text-gray-200">{whatsappLabelText}</label>
             <input
               id="edit-whatsapp"
               type="tel"
               bind:value={editData.whatsapp}
-              placeholder="Masukkan nombor WhatsApp"
+              placeholder={enterWhatsappText}
               required
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
+              on:input={restrictToNumbers}
+              on:keydown={preventNonNumeric}
             />
+            <p class="text-xs text-gray-500">{onlyNumbersAllowedText}</p>
           </div>
           <div class="flex flex-col gap-2">
-            <label for="edit-email" class="text-sm font-medium text-gray-200">Email (Opsional)</label>
+            <label for="edit-email" class="text-sm font-medium text-gray-200">{emailLabelText} ({optionalText})</label>
             <input
               id="edit-email"
               type="email"
               bind:value={editData.email}
-              placeholder="Masukkan email"
+              placeholder={enterEmailText}
               class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
             />
           </div>
           <div class="flex gap-3 justify-end mt-2.5">
-            <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => (showEditModal = false)}>Batal</button>
-            <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">Simpan Perubahan</button>
+            <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => (showEditModal = false)}>{cancelText}</button>
+            <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">{saveChangesText}</button>
           </div>
         </form>
       </div>

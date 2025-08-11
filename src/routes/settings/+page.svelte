@@ -1,11 +1,72 @@
 <script>
   import { currentLanguage, translations } from '../../lib/stores/language.js';
-  import { getAvailability, getHolidays, getPricePackages, createPricePackage, updatePricePackage, deletePricePackage, createHoliday, deleteHoliday, updateAvailabilityByDay } from '../../lib/supabase.js';
+  import { getAvailability, getHolidays, getPricePackages, createPricePackage, updatePricePackage, deletePricePackage, createHoliday, deleteHoliday, updateAvailabilityByDay, getColors, createColor, updateColor, deleteColor, resetToDefaultColors } from '../../lib/supabase.js';
+  import { colors, refreshColors } from '../../lib/stores/colors.js';
   import { Settings, User, Bell, Shield, Palette, Database, HelpCircle, LogOut, Plus, Trash2 } from 'lucide-svelte';
   import { onMount } from 'svelte';
   
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
+  
+  // Create reactive variables for all translated text to ensure immediate updates
+  $: customStatusText = currentTranslations['custom_status'] || 'custom_status';
+  $: customStatusDescriptionText = currentTranslations['custom_status_description'] || 'custom_status_description';
+  $: addStatusText = currentTranslations['add_status'] || 'add_status';
+  $: resetToDefaultText = currentTranslations['reset_to_default'] || 'reset_to_default';
+  $: statusUpdatedText = currentTranslations['status_updated'] || 'status_updated';
+  $: statusAddedText = currentTranslations['status_added'] || 'status_added';
+  $: statusDeletedText = currentTranslations['status_deleted'] || 'status_deleted';
+  $: resetSuccessText = currentTranslations['reset_success'] || 'reset_success';
+  $: settingsTitleText = currentTranslations['settings_title'] || 'settings_title';
+  $: brandInfoText = currentTranslations['brand_info'] || 'brand_info';
+  $: brandInfoDescriptionText = currentTranslations['brand_info_description'] || 'brand_info_description';
+  $: brandNameText = currentTranslations['brand_name'] || 'brand_name';
+  $: enterBrandNameText = currentTranslations['enter_brand_name'] || 'enter_brand_name';
+  $: dateAvailabilitySettingsText = currentTranslations['date_availability_settings'] || 'date_availability_settings';
+  $: dateAvailabilityDescriptionText = currentTranslations['date_availability_description'] || 'date_availability_description';
+  $: startText = currentTranslations['start'] || 'start';
+  $: endText = currentTranslations['end'] || 'end';
+  $: saveAvailabilityText = currentTranslations['save_availability'] || 'save_availability';
+  $: holidayManagementText = currentTranslations['holiday_management'] || 'holiday_management';
+  $: holidayManagementDescriptionText = currentTranslations['holiday_management_description'] || 'holiday_management_description';
+  $: dateText = currentTranslations['date'] || 'date';
+  $: descriptionText = currentTranslations['description'] || 'description';
+  $: addHolidayText = currentTranslations['add_holiday'] || 'add_holiday';
+  $: loadingSettingsText = currentTranslations['loading_settings'] || 'loading_settings';
+  $: holidayText = currentTranslations['holiday'] || 'holiday';
+  $: notHolidayText = currentTranslations['not_holiday'] || 'not_holiday';
+  $: holidayListText = currentTranslations['holiday_list'] || 'holiday_list';
+  $: noHolidaysForMonthText = currentTranslations['no_holidays_for_month'] || 'no_holidays_for_month';
+  $: deleteHolidayText = currentTranslations['delete_holiday'] || 'delete_holiday';
+  $: statusNameText = currentTranslations['status_name'] || 'status_name';
+  $: colorForStatusText = currentTranslations['color_for_status'] || 'color_for_status';
+  $: deleteStatusText = currentTranslations['delete_status'] || 'delete_status';
+  $: packagesPricingText = currentTranslations['packages_pricing'] || 'packages_pricing';
+  $: packagesDescriptionText = currentTranslations['packages_description'] || 'packages_description';
+  $: packageNameText = currentTranslations['package_name'] || 'package_name';
+  $: addPackageText = currentTranslations['add_package'] || 'add_package';
+  $: deletePackageText = currentTranslations['delete_package'] || 'delete_package';
+  $: holidayAddedSuccessText = currentTranslations['holiday_added_success'] || 'holiday_added_success';
+  $: holidayAddedFailedText = currentTranslations['holiday_added_failed'] || 'holiday_added_failed';
+  $: holidayDeletedSuccessText = currentTranslations['holiday_deleted_success'] || 'holiday_deleted_success';
+  $: holidayDeletedFailedText = currentTranslations['holiday_deleted_failed'] || 'holiday_deleted_failed';
+  
+  // Force immediate reactivity when language changes
+  $: {
+    if (language) {
+      // This ensures all translated text updates immediately when language changes
+      customStatusText, customStatusDescriptionText, addStatusText, resetToDefaultText,
+      statusUpdatedText, statusAddedText, statusDeletedText, resetSuccessText, settingsTitleText,
+      brandInfoText, brandInfoDescriptionText, brandNameText, enterBrandNameText,
+      dateAvailabilitySettingsText, dateAvailabilityDescriptionText, startText, endText,
+      saveAvailabilityText, holidayManagementText, holidayManagementDescriptionText,
+      dateText, descriptionText, addHolidayText, loadingSettingsText,
+      holidayText, notHolidayText, holidayListText, noHolidaysForMonthText, deleteHolidayText,
+      statusNameText, colorForStatusText, deleteStatusText, packagesPricingText,
+      packagesDescriptionText, packageNameText, addPackageText, deletePackageText,
+      holidayAddedSuccessText, holidayAddedFailedText, holidayDeletedSuccessText, holidayDeletedFailedText;
+    }
+  }
 
   function t(key) {
     return currentTranslations[key] || key;
@@ -32,6 +93,9 @@
   // Data from Supabase
   let holidays = [];
   let packages = [];
+  
+  // Reactive version for forcing holiday list updates (similar to Kanban)
+  let holidayListVersion = 0;
 
   async function saveAvailability() {
     try {
@@ -74,15 +138,24 @@
           isHoliday: isHoliday
         };
         const newHoliday = await createHoliday(holidayData);
+        
+        // Update local state immediately
         holidays = [...holidays, newHoliday];
+        
+        // Force holiday list to re-render (same pattern as Kanban)
+        holidayListVersion += 1;
         
         // Reset form
         selectedDate = '';
         holidayDescription = '';
         isHoliday = false;
+        
+        // Show success notification
+        showNotificationModal(holidayAddedSuccessText, 'success');
       } catch (err) {
-        error = 'Gagal menambah cuti. Silakan coba lagi.';
+        error = holidayAddedFailedText;
         console.error('Error adding holiday:', err);
+        showNotificationModal('Ralat: ' + err.message, 'error');
       }
     }
   }
@@ -90,10 +163,19 @@
   async function deleteHolidayHandler(id) {
     try {
       await deleteHoliday(id);
+      
+      // Update local state immediately
       holidays = holidays.filter(holiday => holiday.id !== id);
+      
+      // Force holiday list to re-render (same pattern as Kanban)
+      holidayListVersion += 1;
+      
+      // Show success notification
+      showNotificationModal(holidayDeletedSuccessText, 'success');
     } catch (err) {
-      error = 'Gagal menghapus cuti. Silakan coba lagi.';
+      error = holidayDeletedFailedText;
       console.error('Error deleting holiday:', err);
+      showNotificationModal('Ralat: ' + err.message, 'error');
     }
   }
 
@@ -105,6 +187,19 @@
     return months[monthIndex];
   }
 
+  // Reactive function to get holidays for selected month/year (same pattern as Kanban)
+  $: holidaysInMonth = getHolidaysInMonth(selectedMonth, selectedYear);
+  
+  // Force holiday list to re-render when version changes (same pattern as Kanban)
+  $: _forceHolidayListRerender = holidayListVersion;
+  
+  // Ensure holiday list updates when holidays array changes
+  $: {
+    if (holidays.length >= 0) {
+      holidaysInMonth;
+    }
+  }
+  
   function getHolidaysInMonth(month, year) {
     return holidays.filter(holiday => {
       const holidayDate = new Date(holiday.date);
@@ -203,11 +298,7 @@
 
   // Brand & Custom Settings (stored in localStorage)
   let brand = { name: 'Nama Usaha' };
-  let statuses = [
-    { id: 1, name: 'Baru', color: '#3b82f6' },
-    { id: 2, name: 'Dalam Proses', color: '#f59e0b' },
-    { id: 3, name: 'Selesai', color: '#22c55e' }
-  ];
+  let statuses = [];
 
   const STORAGE_KEY = 'app_settings_v1';
 
@@ -232,17 +323,28 @@
       error = null;
 
       // Load data in parallel
-      const [holidaysData, packagesData, availabilityDataFromDB] = await Promise.all([
+      const [holidaysData, packagesData, availabilityDataFromDB, colorsData] = await Promise.all([
         getHolidays(),
         getPricePackages(),
-        getAvailability()
+        getAvailability(),
+        getColors()
       ]);
 
       holidays = holidaysData;
+      // Force holiday list to update after loading data
+      holidayListVersion += 1;
+      
       packages = packagesData.map(pkg => ({
         id: pkg.id,
         name: pkg.pakej,
         price: pkg.harga
+      }));
+      
+      // Load colors from database
+      statuses = colorsData.map(color => ({
+        id: color.id,
+        name: color.custom_status,
+        color: color.code_color
       }));
 
       // Process availability data from DB
@@ -291,13 +393,87 @@
     } catch {}
   }
 
-  function addStatus() {
-    const newItem = { id: Date.now(), name: 'Status Baru', color: '#64748b' };
-    statuses = [...statuses, newItem];
+  async function addStatus() {
+    try {
+      const newColor = await createColor({
+        custom_status: 'Status Baru',
+        code_color: '#64748b'
+      });
+      
+      statuses = [...statuses, {
+        id: newColor.id,
+        name: newColor.custom_status,
+        color: newColor.code_color
+      }];
+      
+      // Refresh the colors store
+      refreshColors();
+      
+      showNotificationModal(t('status_added'), 'success');
+    } catch (err) {
+      error = 'Gagal menambah status. Silakan coba lagi.';
+      console.error('Error adding status:', err);
+      showNotificationModal('Ralat: ' + err.message, 'error');
+    }
   }
 
-  function removeStatus(id) {
-    statuses = statuses.filter((s) => s.id !== id);
+  async function removeStatus(id) {
+    try {
+      await deleteColor(id);
+      statuses = statuses.filter((s) => s.id !== id);
+      
+      // Refresh the colors store
+      refreshColors();
+      
+      showNotificationModal(t('status_deleted'), 'success');
+    } catch (err) {
+      error = 'Gagal memadam status. Silakan coba lagi.';
+      console.error('Error deleting status:', err);
+      showNotificationModal('Ralat: ' + err.message, 'error');
+    }
+  }
+
+  async function updateStatus(id, name, color) {
+    try {
+      await updateColor(id, {
+        custom_status: name,
+        code_color: color
+      });
+      
+      // Update local state
+      statuses = statuses.map(s => 
+        s.id === id ? { ...s, name, color } : s
+      );
+      
+      // Refresh the colors store
+      refreshColors();
+      
+      showNotificationModal(t('status_updated'), 'success');
+    } catch (err) {
+      error = 'Gagal mengemas kini status. Silakan coba lagi.';
+      console.error('Error updating status:', err);
+      showNotificationModal('Ralat: ' + err.message, 'error');
+    }
+  }
+
+  async function resetToDefault() {
+    try {
+      const defaultColors = await resetToDefaultColors();
+      statuses = defaultColors.map(color => ({
+        id: color.id,
+        name: color.custom_status,
+        color: color.code_color
+      }));
+      
+      // Refresh the colors store
+      refreshColors();
+      
+      showNotificationModal(t('reset_success'), 'success');
+    } catch (err) {
+      error = 'Gagal mengembalikan ke default. Silakan coba lagi.';
+      console.error('Error resetting to default:', err);
+      showNotificationModal('Ralat: ' + err.message, 'error');
+    }
   }
 
   async function addPackage() {
@@ -344,7 +520,7 @@
 
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
   <div class="flex justify-between items-center mb-8 px-5 max-w-6xl mx-auto">
-    <h1 class="text-3xl font-semibold text-gray-200 m-0">Tetapan</h1>
+    <h1 class="text-3xl font-semibold text-gray-200 m-0">{settingsTitleText}</h1>
   </div>
 
   {#if error}
@@ -359,22 +535,22 @@
   {#if loading}
     <div class="px-5 max-w-6xl mx-auto">
       <div class="text-center py-15 text-gray-400">
-        <p class="m-0 text-base">Memuat tetapan...</p>
+        <p class="m-0 text-base">{loadingSettingsText}</p>
       </div>
     </div>
   {:else}
     <div class="px-5 max-w-6xl mx-auto">
       <!-- Brand Info -->
       <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">Maklumat Brand</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">Tetapkan nama brand/perusahaan anda</p>
+        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{brandInfoText}</h2>
+        <p class="text-gray-400 text-sm m-0 mb-6">{brandInfoDescriptionText}</p>
         <div class="flex flex-col gap-2">
-          <label for="brandName" class="text-gray-200 text-sm font-medium">Nama Brand</label>
+          <label for="brandName" class="text-gray-200 text-sm font-medium">{brandNameText}</label>
           <input 
             id="brandName" 
             type="text" 
             bind:value={brand.name} 
-            placeholder="Masukkan nama brand" 
+            placeholder={enterBrandNameText} 
             class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500"
           />
         </div>
@@ -382,8 +558,8 @@
 
       <!-- Date Availability Settings -->
       <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">Tetapan Ketersediaan Tarikh</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">Tetapkan hari dan masa yang tersedia untuk tempahan</p>
+        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{dateAvailabilitySettingsText}</h2>
+        <p class="text-gray-400 text-sm m-0 mb-6">{dateAvailabilityDescriptionText}</p>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
           {#each availabilityData as dayData, index}
@@ -400,7 +576,7 @@
               </div>
               <div class="flex gap-4 {!dayData.is_active ? 'opacity-50' : ''}">
                 <div class="flex flex-col gap-1.5 flex-1">
-                  <label for={`start-${dayData.day}`} class="text-gray-400 text-xs">Mula:</label>
+                  <label for={`start-${dayData.day}`} class="text-gray-400 text-xs">{startText}:</label>
                   <input 
                     id={`start-${dayData.day}`}
                     type="time" 
@@ -410,7 +586,7 @@
                   />
                 </div>
                 <div class="flex flex-col gap-1.5 flex-1">
-                  <label for={`end-${dayData.day}`} class="text-gray-400 text-xs">Tamat:</label>
+                  <label for={`end-${dayData.day}`} class="text-gray-400 text-xs">{endText}:</label>
                   <input 
                     id={`end-${dayData.day}`}
                     type="time" 
@@ -428,19 +604,19 @@
           class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600" 
           on:click={saveAvailability}
         >
-          Simpan Ketersediaan
+          {saveAvailabilityText}
         </button>
       </div>
 
       <!-- Holiday Management -->
       <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">Pengurusan Cuti</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">Tambah dan urus tarikh cuti</p>
+        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{holidayManagementText}</h2>
+        <p class="text-gray-400 text-sm m-0 mb-6">{holidayManagementDescriptionText}</p>
         
         <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700 mb-6">
           <div class="flex flex-col md:flex-row gap-5 mb-4">
             <div class="flex flex-col gap-2 flex-1">
-              <label for="holidayDate" class="text-gray-200 text-sm font-medium">Tarikh</label>
+              <label for="holidayDate" class="text-gray-200 text-sm font-medium">{dateText}</label>
               <input 
                 type="date" 
                 id="holidayDate"
@@ -450,12 +626,12 @@
               />
             </div>
             <div class="flex flex-col gap-2 flex-1">
-              <label for="holidayDescription" class="text-gray-200 text-sm font-medium">Keterangan</label>
+              <label for="holidayDescription" class="text-gray-200 text-sm font-medium">{descriptionText}</label>
               <input 
                 type="text" 
                 id="holidayDescription"
                 bind:value={holidayDescription}
-                placeholder="Masukkan keterangan cuti"
+                placeholder={descriptionText}
                 required
                 class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-3 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 placeholder:text-neutral-600"
               />
@@ -470,14 +646,14 @@
                   bind:checked={isHoliday}
                   class="w-4.5 h-4.5 accent-green-500"
                 />
-                <span class="text-gray-200 text-sm">Cuti</span>
+                <span class="text-gray-200 text-sm">{holidayText}</span>
               </label>
             </div>
             <button 
               class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600 self-end"
               on:click={addHoliday}
             >
-              Tambah Cuti
+              {addHolidayText}
             </button>
           </div>
         </div>
@@ -485,7 +661,7 @@
         <!-- Holiday List -->
         <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
-            <h3 class="text-gray-200 text-lg m-0">Senarai Cuti</h3>
+            <h3 class="text-gray-200 text-lg m-0">{holidayListText}</h3>
             <div class="flex gap-2.5 justify-center">
               <select 
                 bind:value={selectedMonth}
@@ -507,24 +683,24 @@
           </div>
           
           <div class="flex flex-col gap-2.5">
-            {#if getHolidaysInMonth(selectedMonth, selectedYear).length === 0}
+            {#if holidaysInMonth.length === 0}
               <div class="text-center py-8 text-gray-400">
-                <p class="m-0">Tiada cuti untuk {getMonthName(selectedMonth)} {selectedYear}</p>
+                <p class="m-0">{noHolidaysForMonthText}</p>
               </div>
             {:else}
-              {#each getHolidaysInMonth(selectedMonth, selectedYear) as holiday}
+              {#each holidaysInMonth as holiday}
                 <div class="flex justify-between items-center bg-neutral-800 rounded-md p-4 border border-neutral-700">
                   <div class="flex flex-col gap-1.5">
                     <div class="text-gray-200 text-base font-semibold">{formatDate(holiday.date)}</div>
                     <div class="text-gray-400 text-sm">{holiday.description}</div>
                     <div class="text-green-500 text-xs font-medium">
-                      {holiday.isHoliday ? 'Cuti' : 'Bukan Cuti'}
+                      {holiday.isHoliday ? holidayText : notHolidayText}
                     </div>
                   </div>
                   <button 
                     class="bg-transparent border-0 text-red-400 text-lg cursor-pointer p-1.5 rounded transition-colors hover:bg-red-400/10"
                     on:click={() => deleteHolidayHandler(holiday.id)}
-                    title="Padam cuti"
+                    title={deleteHolidayText}
                   >
                     ×
                   </button>
@@ -537,8 +713,8 @@
 
       <!-- Custom Statuses -->
       <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">Custom Status</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">Tambah, padam, dan ubah warna status</p>
+        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{customStatusText}</h2>
+        <p class="text-gray-400 text-sm m-0 mb-6">{customStatusDescriptionText}</p>
         <div class="flex flex-col gap-2.5">
           {#each statuses as status (status.id)}
             <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
@@ -546,30 +722,37 @@
                 class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
                 type="text"
                 bind:value={status.name}
-                placeholder="Nama status"
+                placeholder={statusNameText}
+                on:blur={() => updateStatus(status.id, status.name, status.color)}
               />
               <input
                 class="w-10 h-8 border border-neutral-700 rounded-md bg-neutral-800 p-0"
                 type="color"
                 bind:value={status.color}
-                aria-label={`Warna untuk ${status.name}`}
+                aria-label={`${colorForStatusText} untuk ${status.name}`}
+                on:change={() => updateStatus(status.id, status.name, status.color)}
               />
               <span class="inline-block w-6 h-6 rounded-full border border-neutral-700 ml-1" style={`background:${status.color}`}></span>
-              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removeStatus(status.id)} title="Padam status">
+              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removeStatus(status.id)} title={deleteStatusText}>
                 <Trash2 size={16} />
               </button>
             </div>
           {/each}
         </div>
-        <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer mt-3" on:click={addStatus}>
-          <Plus size={16}/> Tambah Status
-        </button>
+        <div class="flex gap-3 mt-3">
+          <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={addStatus}>
+            <Plus size={16}/> {addStatusText}
+          </button>
+          <button class="inline-flex items-center gap-2 bg-blue-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={resetToDefault}>
+            {resetToDefaultText}
+          </button>
+        </div>
       </div>
 
       <!-- Packages & Pricing -->
       <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">Pakej & Harga</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">Tambah, padam, dan ubah nama serta harga pakej</p>
+        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{packagesPricingText}</h2>
+        <p class="text-gray-400 text-sm m-0 mb-6">{packagesDescriptionText}</p>
         <div class="flex flex-col gap-2.5">
           {#each packages as pkg (pkg.id)}
             <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
@@ -577,7 +760,7 @@
                 class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
                 type="text" 
                 bind:value={pkg.name} 
-                placeholder="Nama pakej"
+                placeholder={packageNameText}
                 on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
               />
               <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden">
@@ -591,14 +774,14 @@
                   on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
                 />
               </div>
-              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removePackage(pkg.id)} title="Padam pakej">
+              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removePackage(pkg.id)} title={deletePackageText}>
                 <Trash2 size={16} />
               </button>
             </div>
           {/each}
         </div>
         <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer mt-3" on:click={addPackage}>
-          <Plus size={16}/> Tambah Pakej
+          <Plus size={16}/> {addPackageText}
         </button>
       </div>
     </div>

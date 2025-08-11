@@ -6,6 +6,24 @@
   $: currentPath = $page.url.pathname;
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
+  
+  // Create reactive variables for all translated text to ensure immediate updates
+  $: homeText = currentTranslations['home'] || 'home';
+  $: bookingManagerText = currentTranslations['booking_manager'] || 'booking_manager';
+  $: contactManagerText = currentTranslations['contact_manager'] || 'contact_manager';
+  $: settingsText = currentTranslations['settings'] || 'settings';
+  $: contextManagerText = currentTranslations['context_manager'] || 'context_manager';
+  $: myAccountText = currentTranslations['my_account'] || 'my_account';
+  $: logoutText = currentTranslations['logout'] || 'logout';
+  
+  // Force immediate reactivity when language changes
+  $: {
+    if (language) {
+      // This ensures all translated text updates immediately when language changes
+      homeText, bookingManagerText, contactManagerText, settingsText, contextManagerText, myAccountText, logoutText;
+    }
+  }
+  
   let showMobileMenu = false;
   let showLanguageDropdown = false;
 
@@ -26,7 +44,16 @@
   }
 
   function selectLanguage(lang) {
+    // Immediately update the language store
     currentLanguage.set(lang);
+    
+    // Force immediate reactivity by triggering a store update
+    currentLanguage.update(current => current);
+    
+    // Force a reactive update by accessing the store
+    currentLanguage.subscribe(() => {});
+    
+    // Close the dropdown
     showLanguageDropdown = false;
   }
 
@@ -61,7 +88,7 @@
           href="/" 
           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/' ? 'text-gray-200' : ''}"
         >
-          {t('home')}
+          {homeText}
           {#if currentPath === '/'}
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
@@ -70,7 +97,7 @@
           href="/booking-manager" 
           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/booking-manager' ? 'text-gray-200' : ''}"
         >
-          {t('booking_manager')}
+          {bookingManagerText}
           {#if currentPath === '/booking-manager'}
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
@@ -79,7 +106,7 @@
           href="/contact-manager" 
           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/contact-manager' ? 'text-gray-200' : ''}"
         >
-          {t('contact_manager')}
+          {contactManagerText}
           {#if currentPath === '/contact-manager'}
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
@@ -88,7 +115,7 @@
           href="/settings" 
           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/settings' ? 'text-gray-200' : ''}"
         >
-          {t('settings')}
+          {settingsText}
           {#if currentPath === '/settings'}
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
@@ -97,7 +124,7 @@
           href="/context-manager" 
           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/context-manager' ? 'text-gray-200' : ''}"
         >
-          {t('context_manager')}
+          {contextManagerText}
           {#if currentPath === '/context-manager'}
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
@@ -127,37 +154,44 @@
             class="absolute top-full right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl min-w-45 z-50 overflow-hidden"
             on:click|stopPropagation
           >
-            <div 
-              class="flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 border-b border-gray-700 hover:bg-gray-800 hover:text-green-500 {language === 'ms' ? 'bg-green-500 text-gray-900' : ''}"
+            <button 
+              type="button"
+              class="w-full flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 border-b border-gray-700 hover:bg-gray-800 hover:text-green-500 {language === 'ms' ? 'bg-green-500 text-gray-900' : ''}"
               on:click={() => selectLanguage('ms')}
+              on:keydown={(e) => e.key === 'Enter' && selectLanguage('ms')}
             >
               <span class="text-base">🇲🇾</span>
               <span class="flex-1 text-sm font-medium">Bahasa Melayu</span>
               {#if language === 'ms'}
                 <Check size={12} class="font-bold" />
               {/if}
-            </div>
-            <div 
-              class="flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 hover:bg-gray-800 hover:text-green-500 {language === 'en' ? 'bg-green-500 text-gray-900' : ''}"
+            </button>
+            <button 
+              type="button"
+              class="w-full flex items-center gap-2.5 px-4 py-3 text-gray-200 cursor-pointer transition-all duration-200 hover:bg-gray-800 hover:text-green-500 {language === 'en' ? 'bg-green-500 text-gray-900' : ''}"
               on:click={() => selectLanguage('en')}
+              on:keydown={(e) => e.key === 'Enter' && selectLanguage('en')}
             >
               <span class="text-base">🇺🇸</span>
               <span class="flex-1 text-sm font-medium">English</span>
               {#if language === 'en'}
                 <Check size={12} class="font-bold" />
               {/if}
-            </div>
+            </button>
           </div>
         {/if}
       </div>
 
       <!-- User Avatar -->
-      <div 
+      <button 
+        type="button"
         class="text-green-500 hover:text-green-600 hover:border-green-600 cursor-pointer transition-colors duration-200 bg-gray-900 border-2 border-green-500 rounded-full w-9 h-9 flex items-center justify-center"
         on:click={toggleMobileMenu}
+        on:keydown={(e) => e.key === 'Enter' && toggleMobileMenu()}
+        aria-label="Toggle user menu"
       >
         <User size={16} />
-      </div>
+      </button>
     </div>
   </div>
 </nav>
@@ -167,6 +201,9 @@
   <div 
     class="fixed inset-0 bg-black/ flex items-start justify-end z-50 p-5"
     on:click={closeMobileMenu}
+    role="dialog"
+    aria-modal="true"
+    aria-label="User account menu"
   >
     <div 
       class="bg-gray-900 rounded-lg p-5 w-70 border border-gray-700 shadow-2xl mt-15"
@@ -201,14 +238,14 @@
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('my_account')}
+          {myAccountText}
         </a>
         <a 
           href="/logout" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200"
           on:click={closeMobileMenu}
         >
-          {t('logout')}
+          {logoutText}
         </a>
       </div>
       
@@ -219,35 +256,35 @@
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('home')}
+          {homeText}
         </a>
         <a 
           href="/booking-manager" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/booking-manager' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('booking_manager')}
+          {bookingManagerText}
         </a>
         <a 
           href="/contact-manager" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/contact-manager' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('contact_manager')}
+          {contactManagerText}
         </a>
         <a 
           href="/settings" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/settings' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('settings')}
+          {settingsText}
         </a>
         <a 
           href="/context-manager" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/context-manager' ? 'text-green-500' : ''}"
           on:click={closeMobileMenu}
         >
-          {t('context_manager')}
+          {contextManagerText}
         </a>
       </div>
     </div>

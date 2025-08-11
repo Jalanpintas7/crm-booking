@@ -1,11 +1,125 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { currentLanguage, translations } from '../../lib/stores/language.js';
-  import { getBookings, createBooking, updateBooking, deleteBooking, getContacts, getEmployees, getPricePackages } from '../../lib/supabase.js';
-  import { Trash2, BarChart3, Table, ClipboardList, Calendar, Eye, Edit, CheckCircle, AlertTriangle, Download, RefreshCw } from 'lucide-svelte';
+  import { colors } from '../../lib/stores/colors.js';
+  import { supabase, getBookings, createBooking, updateBooking, deleteBooking, deleteBookingsBulk, getContacts, getEmployees, getPricePackages } from '../../lib/supabase.js';
+  import { Trash2, BarChart3, Table, ClipboardList, Calendar, Eye, Edit, CheckCircle, AlertTriangle, Download, RefreshCw, GripVertical } from 'lucide-svelte';
+  import { DatePicker } from '$lib';
 
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
+  
+  // Create reactive variables for all translated text to ensure immediate updates
+  $: bookingManagerTitleText = currentTranslations['booking_manager_title'] || 'booking_manager_title';
+  $: addNewBookingText = currentTranslations['add_new_booking'] || 'add_new_booking';
+  $: clientNameText = currentTranslations['client_name'] || 'client_name';
+  $: dateText = currentTranslations['date'] || 'date';
+  $: packageNameText = currentTranslations['package_name'] || 'package_name';
+  $: amountText = currentTranslations['amount'] || 'amount';
+  $: statusText = currentTranslations['status'] || 'status';
+  $: actionsText = currentTranslations['actions'] || 'actions';
+  $: completedText = currentTranslations['completed'] || 'completed';
+  $: upcomingText = currentTranslations['upcoming'] || 'upcoming';
+  $: pastText = currentTranslations['past'] || 'past';
+  $: todayText = currentTranslations['today'] || 'today';
+  $: upcomingBookingsText = currentTranslations['upcoming_bookings'] || 'upcoming_bookings';
+  $: dragDropInstructionText = currentTranslations['drag_drop_instruction'] || 'drag_drop_instruction';
+  $: deleteText = currentTranslations['delete'] || 'delete';
+  $: cancelText = currentTranslations['cancel'] || 'cancel';
+  $: saveText = currentTranslations['save'] || 'save';
+  $: filterAllText = currentTranslations['filter_all'] || 'filter_all';
+  $: filterCompletedText = currentTranslations['filter_completed'] || 'filter_completed';
+  $: filterUpcomingText = currentTranslations['filter_upcoming'] || 'filter_upcoming';
+  $: viewTableText = currentTranslations['view_table'] || 'view_table';
+  $: viewKanbanText = currentTranslations['view_kanban'] || 'view_kanban';
+  $: viewCalendarText = currentTranslations['view_calendar'] || 'view_calendar';
+  $: viewText = currentTranslations['view'] || 'view';
+  $: searchText = currentTranslations['search'] || 'search';
+  $: searchPlaceholderText = currentTranslations['search_placeholder'] || 'search_placeholder';
+  $: filterText = currentTranslations['filter'] || 'filter';
+  $: fromText = currentTranslations['from'] || 'from';
+  $: toText = currentTranslations['to'] || 'to';
+  $: batchTrashText = currentTranslations['batch_trash'] || 'batch_trash';
+  $: exportText = currentTranslations['export'] || 'export';
+  $: phoneText = currentTranslations['phone'] || 'phone';
+  $: enterClientNameText = currentTranslations['enter_client_name'] || 'enter_client_name';
+  $: enterPhoneText = currentTranslations['enter_phone'] || 'enter_phone';
+  $: enterPackageNameText = currentTranslations['enter_package_name'] || 'enter_package_name';
+  $: dealByText = currentTranslations['deal_by'] || 'deal_by';
+  $: enterDealByText = currentTranslations['enter_deal_by'] || 'enter_deal_by';
+  $: bookingDetailsText = currentTranslations['booking_details'] || 'booking_details';
+  $: editText = currentTranslations['edit'] || 'edit';
+  $: editBookingText = currentTranslations['edit_booking'] || 'edit_booking';
+  $: closeText = currentTranslations['close'] || 'close';
+  $: prevText = currentTranslations['prev'] || 'prev';
+  $: nextText = currentTranslations['next'] || 'next';
+  $: pageText = currentTranslations['page'] || 'page';
+  $: bookingsText = currentTranslations['bookings'] || 'bookings';
+  $: noBookingsMessageText = currentTranslations['no_bookings_message'] || 'no_bookings_message';
+  $: chooseContactText = currentTranslations['choose_contact'] || 'choose_contact';
+  $: chooseEmployeeText = currentTranslations['choose_employee'] || 'choose_employee';
+  $: choosePackageText = currentTranslations['choose_package'] || 'choose_package';
+  $: employeeText = currentTranslations['employee'] || 'employee';
+  $: selectAllText = currentTranslations['select_all'] || 'select_all';
+  $: selectedText = currentTranslations['selected'] || 'selected';
+  $: deleteSelectedText = currentTranslations['delete_selected'] || 'delete_selected';
+  $: chooseDateText = currentTranslations['choose_date'] || 'choose_date';
+  $: loadingText = currentTranslations['loading'] || 'loading';
+  $: refreshText = currentTranslations['refresh'] || 'refresh';
+  $: statusBaruText = currentTranslations['status_baru'] || 'status_baru';
+  $: dalamProsesText = currentTranslations['dalam_proses'] || 'dalam_proses';
+  $: selesaiText = currentTranslations['selesai'] || 'selesai';
+  $: keyboardShortcutsText = currentTranslations['keyboard_shortcuts'] || 'keyboard_shortcuts';
+  $: tambahBookingText = currentTranslations['tambah_booking'] || 'tambah_booking';
+  $: refreshDataText = currentTranslations['refresh_data'] || 'refresh_data';
+  $: tutupModalText = currentTranslations['tutup_modal'] || 'tutup_modal';
+  $: tukarTampilanText = currentTranslations['tukar_tampilan'] || 'tukar_tampilan';
+  $: tampilanSenaraiText = currentTranslations['tampilan_senarai'] || 'tampilan_senarai';
+  $: tampilanKanbanText = currentTranslations['tampilan_kanban'] || 'tampilan_kanban';
+  $: tampilanKalendarText = currentTranslations['tampilan_kalendar'] || 'tampilan_kalendar';
+  $: noBookingsInSystemText = currentTranslations['no_bookings_in_system'] || 'no_bookings_in_system';
+  $: noBookingsTitleText = currentTranslations['no_bookings_title'] || 'no_bookings_title';
+  $: noBookingsDescriptionText = currentTranslations['no_bookings_description'] || 'no_bookings_description';
+  $: noBookingsFoundText = currentTranslations['no_bookings_found'] || 'no_bookings_found';
+  $: addFirstBookingText = currentTranslations['add_first_booking'] || 'add_first_booking';
+  $: statusChangedText = currentTranslations['status_changed'] || 'status_changed';
+  $: tryAgainText = currentTranslations['try_again'] || 'try_again';
+  $: loadingBookingsText = currentTranslations['loading_bookings'] || 'loading_bookings';
+  $: pleaseWaitText = currentTranslations['please_wait'] || 'please_wait';
+  $: noBookingsMatchFilterText = currentTranslations['no_bookings_match_filter'] || 'no_bookings_match_filter';
+  $: bookingsInSystemText = currentTranslations['bookings_in_system'] || 'bookings_in_system';
+  $: resetFilterText = currentTranslations['reset_filter'] || 'reset_filter';
+  $: addNewBookingButtonText = currentTranslations['add_new_booking'] || 'add_new_booking';
+  $: bulkActionsText = currentTranslations['bulk_actions'] || 'bulk_actions';
+  $: confirmDeleteText = currentTranslations['confirm_delete'] || 'confirm_delete';
+  $: addBookingText = currentTranslations['add_booking'] || 'add_booking';
+  $: actionCannotBeUndoneText = currentTranslations['action_cannot_be_undone'] || 'action_cannot_be_undone';
+  $: failedChangeStatusText = currentTranslations['failed_change_status'] || 'failed_change_status';
+  
+  // Force immediate reactivity when language changes
+  $: {
+    if (language) {
+      // This ensures all translated text updates immediately when language changes
+      bookingManagerTitleText, addNewBookingText, clientNameText, dateText, packageNameText,
+      amountText, statusText, actionsText, completedText, upcomingText, pastText, todayText,
+      upcomingBookingsText, dragDropInstructionText, deleteText, cancelText, saveText,
+      filterAllText, filterCompletedText, filterUpcomingText, viewTableText, viewKanbanText,
+      viewCalendarText, viewText, searchText, searchPlaceholderText, filterText, fromText,
+      toText, batchTrashText, exportText, phoneText, enterClientNameText, enterPhoneText,
+      enterPackageNameText, dealByText, enterDealByText, bookingDetailsText, editText,
+      editBookingText, closeText, prevText, nextText, pageText, bookingsText,
+      noBookingsMessageText, chooseContactText, chooseEmployeeText, choosePackageText,
+      employeeText, selectAllText, selectedText, deleteSelectedText, chooseDateText,
+      loadingText, refreshText, statusBaruText, dalamProsesText, selesaiText,
+      keyboardShortcutsText, tambahBookingText, refreshDataText, tutupModalText,
+      tukarTampilanText, tampilanSenaraiText, tampilanKanbanText, tampilanKalendarText,
+      noBookingsInSystemText, noBookingsTitleText, noBookingsDescriptionText,
+      noBookingsFoundText, addFirstBookingText, statusChangedText, tryAgainText,
+      loadingBookingsText, pleaseWaitText, noBookingsMatchFilterText, bookingsInSystemText, resetFilterText,
+      addNewBookingButtonText, bulkActionsText, confirmDeleteText, addBookingText, actionCannotBeUndoneText,
+      failedChangeStatusText;
+    }
+  }
 
   function t(key) {
     return currentTranslations[key] || key;
@@ -46,6 +160,12 @@
   let currentYear = new Date().getFullYear();
   let isSubmitting = false;
   let isRefreshing = false;
+  let bookingsChannel = null;
+  let kanbanVersion = 0;
+  let isKanbanRefreshing = false;
+  let animatingCards = new Set();
+  let kanbanFadeTransition = false;
+  let refreshTimeout = null;
 
   let formData = {
     contact_id: '',
@@ -53,13 +173,39 @@
     date: '',
     package_name: '',
     total_price: '',
-    status: 'Akan Datang'
+    status: ''
   };
+
+  // Set default status from database colors
+  $: if ($colors.length > 0 && !formData.status) {
+    formData.status = $colors[0].custom_status;
+  }
+
+  // Get default status from database colors
+  $: defaultStatus = $colors.length > 0 ? $colors[0].custom_status : 'Status Baru';
 
   // Load data on component mount
   onMount(async () => {
     await loadData();
     setupKeyboardShortcuts();
+    setupRealtime();
+  });
+
+  onDestroy(() => {
+    if (bookingsChannel) {
+      try {
+        supabase.removeChannel(bookingsChannel);
+      } catch (e) {
+        console.warn('Gagal melepas channel realtime:', e);
+      }
+      bookingsChannel = null;
+    }
+    
+    // Cleanup timeout
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+      refreshTimeout = null;
+    }
   });
 
   function setupKeyboardShortcuts() {
@@ -116,6 +262,7 @@
     await loadData();
     isRefreshing = false;
     showToastMessage('Data berhasil diperbarui', 'success');
+    kanbanVersion += 1;
   }
 
   function showToastMessage(message, type = 'success') {
@@ -126,7 +273,8 @@
   }
 
   $: filteredBookings = !loading ? getFilteredBookings() : [];
-  $: kanbanColumns = !loading ? getKanbanColumns() : {'Akan Datang': [], 'Sedang Berlangsung': [], 'Selesai': []};
+  $: _forceKanbanRerender = kanbanVersion; // trigger deps
+  $: kanbanColumns = !loading ? getKanbanColumns() : getEmptyKanbanColumns();
   $: calendarData = !loading ? getCalendarData() : [];
   $: totalPages = Math.ceil(filteredBookings.length / perPage);
   $: pagedBookings = filteredBookings.slice((page - 1) * perPage, page * perPage);
@@ -137,7 +285,7 @@
       return [];
     }
     
-    let filtered = bookings.filter(b => {
+    let filtered = bookings.map(b => ({ ...b })).filter(b => {
       // Jika tidak ada search term, tampilkan semua
       if (!searchTerm.trim()) return true;
       
@@ -175,18 +323,149 @@
   function getKanbanColumns() {
     // Pastikan data sudah dimuat sebelum memproses
     if (!filteredBookings || filteredBookings.length === 0) {
-      return {
-        'Akan Datang': [],
-        'Sedang Berlangsung': [],
-        'Selesai': []
-      };
+      // Return empty columns based on available statuses from database
+      const statusColumns = {};
+      $colors.forEach(color => {
+        statusColumns[color.custom_status] = [];
+      });
+      return statusColumns;
     }
     
-    return {
-      'Akan Datang': filteredBookings.filter(b => (b.status || 'Akan Datang') === 'Akan Datang'),
-      'Sedang Berlangsung': filteredBookings.filter(b => (b.status || 'Akan Datang') === 'Sedang Berlangsung'),
-      'Selesai': filteredBookings.filter(b => (b.status || 'Akan Datang') === 'Selesai')
-    };
+    // Force shallow copy to membantu re-render saat array referensial sama
+    const fb = filteredBookings.map(b => ({ ...b }));
+    
+    // Create dynamic columns based on database colors
+    const statusColumns = {};
+    $colors.forEach(color => {
+      statusColumns[color.custom_status] = fb.filter(b => (b.status || defaultStatus) === color.custom_status);
+    });
+    
+    return statusColumns;
+  }
+
+  function getEmptyKanbanColumns() {
+    const columns = {};
+    $colors.forEach(color => {
+      columns[color.custom_status] = [];
+    });
+    return columns;
+  }
+
+  // Helper untuk normalisasi tanggal ke format YYYY-MM-DD
+  function toDateOnlyString(input) {
+    if (!input) return '';
+    // Jika string format 'YYYY-MM-DD' atau ISO, ambil bagian tanggal saja tanpa konversi timezone
+    if (typeof input === 'string') {
+      const m1 = input.match(/^\d{4}-\d{2}-\d{2}/);
+      if (m1) return m1[0];
+    }
+    // Jika Date object, gunakan komponen lokal
+    const d = input instanceof Date ? input : new Date(input);
+    if (isNaN(d)) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function enrichBooking(rawBooking) {
+    if (!rawBooking) return rawBooking;
+    const contact = contacts.find((c) => c.id === rawBooking.contact_id) || null;
+    const employee = employees.find((e) => e.id === rawBooking.employee_id) || null;
+    return { ...rawBooking, contact, employee };
+  }
+
+  function setupRealtime() {
+    try {
+      bookingsChannel = supabase
+        .channel('bookings-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+          const eventType = payload.eventType;
+          if (eventType === 'INSERT') {
+            const newBooking = enrichBooking(payload.new);
+            // Hindari duplikasi
+            bookings = [newBooking, ...bookings.filter((b) => b.id !== newBooking.id)];
+            kanbanVersion += 1;
+          } else if (eventType === 'UPDATE') {
+            const updated = enrichBooking(payload.new);
+            bookings = bookings.map((b) => (b.id === updated.id ? { ...b, ...updated } : b));
+            kanbanVersion += 1;
+          } else if (eventType === 'DELETE') {
+            const deletedId = payload.old?.id;
+            if (deletedId) {
+              bookings = bookings.filter((b) => b.id !== deletedId);
+              kanbanVersion += 1;
+            }
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // console.log('Realtime bookings subscribed');
+          }
+        });
+    } catch (e) {
+      console.error('Gagal setup realtime bookings:', e);
+    }
+  }
+
+  async function refreshKanbanSilent() {
+    try {
+      isKanbanRefreshing = true;
+      
+      // Tambahkan delay kecil untuk transisi yang lebih smooth
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const fresh = await getBookings();
+      bookings = fresh;
+      kanbanVersion += 1;
+      
+      // Tidak perlu toast untuk refresh senyap
+    } catch (e) {
+      console.error('Gagal refresh kanban:', e);
+      showToastMessage('Gagal menyinkronkan data', 'error');
+    } finally {
+      isKanbanRefreshing = false;
+    }
+  }
+
+  async function refreshDataWithAnimation() {
+    // Debounce untuk mencegah multiple calls
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+    }
+    
+    refreshTimeout = setTimeout(async () => {
+      try {
+        // Mulai animasi fade dan set loading state
+        kanbanFadeTransition = true;
+        isRefreshing = true;
+        
+        // Tunggu animasi fade out selesai
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Refresh data LENGKAP seperti tombol refresh - ini yang penting!
+        await loadData();
+        kanbanVersion += 1;
+        
+        // Tunggu sebentar untuk memastikan render
+        await tick();
+        
+        // Fade in dengan data baru
+        setTimeout(() => {
+          kanbanFadeTransition = false;
+          isRefreshing = false;
+        }, 100);
+        
+        // Tambahkan toast untuk konfirmasi
+        showToastMessage('Data berhasil disinkronkan', 'success');
+        
+      } catch (e) {
+        console.error('Gagal refresh data:', e);
+        kanbanFadeTransition = false;
+        isRefreshing = false;
+        showToastMessage('Gagal menyinkronkan data', 'error');
+      }
+    }, 300); // Kurangi debounce untuk responsiveness yang lebih baik
   }
 
   function getCalendarData() {
@@ -204,14 +483,14 @@
     const currentDate = new Date(startDate);
     
     while (currentDate <= lastDay || calendar.length < 42) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      const dayBookings = filteredBookings.filter(b => b.date === dateStr);
+      const dateStr = toDateOnlyString(currentDate);
+      const dayBookings = filteredBookings.filter(b => toDateOnlyString(b.date) === dateStr);
       
       calendar.push({
         date: new Date(currentDate),
         dateStr,
         isCurrentMonth: currentDate.getMonth() === currentMonth,
-        isToday: dateStr === new Date().toISOString().split('T')[0],
+        isToday: dateStr === toDateOnlyString(new Date()),
         bookings: dayBookings
       });
       
@@ -227,21 +506,29 @@
     currentYear = newDate.getFullYear();
   }
 
+  function goToCurrentMonth() {
+    const today = new Date();
+    currentMonth = today.getMonth();
+    currentYear = today.getFullYear();
+  }
+
   async function addBooking() {
-    if (formData.contact_id && formData.date && formData.package_name && formData.total_price) {
+    if (formData.contact_id && formData.date && formData.package_name) {
       try {
         isSubmitting = true;
+        const totalPriceNum = parseFloat(formData.total_price);
         const bookingData = {
           contact_id: formData.contact_id,
           employee_id: formData.employee_id || null,
           date: formData.date,
           package_name: formData.package_name,
-          total_price: parseFloat(formData.total_price),
-          status: formData.status || 'Akan Datang'
+          total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : 0,
+          status: formData.status || defaultStatus
         };
         
         const newBooking = await createBooking(bookingData);
         bookings = [newBooking, ...bookings];
+        await loadData();
         
         // Reset form
         formData = { 
@@ -250,7 +537,7 @@
           date: '', 
           package_name: '', 
           total_price: '',
-          status: 'Akan Datang'
+          status: defaultStatus
         };
         showForm = false;
         showToastMessage('Booking berhasil ditambah', 'success');
@@ -300,20 +587,38 @@
     }
   }
 
-  function batchMoveToTrash() {
-    bookings = bookings.map(b => selectedIds[b.id] ? { ...b, status: 'trashed' } : b);
-    selectedIds = {};
-    allSelected = false;
+  async function bulkDeleteSelected() {
+    try {
+      const ids = Object.entries(selectedIds)
+        .filter(([, isSelected]) => Boolean(isSelected))
+        .map(([id]) => id);
+      if (ids.length === 0) return;
+      isSubmitting = true;
+      const idsNum = ids.map((v) => Number(v));
+      await deleteBookingsBulk(idsNum);
+      bookings = bookings.filter(b => !idsNum.includes(b.id));
+      selectedIds = {};
+      allSelected = false;
+      showToastMessage(`${ids.length} booking berhasil dihapus`, 'success');
+    } catch (err) {
+      console.error('Error bulk deleting bookings:', err);
+      showToastMessage('Gagal menghapus beberapa booking', 'error');
+    } finally {
+      isSubmitting = false;
+    }
   }
 
-  function toggleSelectBooking(id) {
-    selectedIds = { ...selectedIds, [id]: !selectedIds[id] };
-    allSelected = pagedBookings.every(b => selectedIds[b.id]);
+  function toggleSelectBooking(id, checked) {
+    selectedIds = { ...selectedIds, [id]: checked };
+    allSelected = pagedBookings.every(b => !!selectedIds[b.id]);
   }
 
   function toggleSelectAll() {
-    allSelected = !allSelected;
-    pagedBookings.forEach(b => selectedIds = { ...selectedIds, [b.id]: allSelected });
+    const target = !allSelected;
+    const next = { ...selectedIds };
+    pagedBookings.forEach(b => { next[b.id] = target; });
+    selectedIds = next;
+    allSelected = target;
   }
 
   function openViewModal(booking) {
@@ -334,17 +639,19 @@
   async function saveEditBooking() {
     try {
       isSubmitting = true;
+      const totalPriceNum = parseFloat(selectedBooking.total_price);
       const updatedData = {
         contact_id: selectedBooking.contact_id,
         employee_id: selectedBooking.employee_id || null,
         date: selectedBooking.date,
         package_name: selectedBooking.package_name,
-        total_price: parseFloat(selectedBooking.total_price),
-        status: selectedBooking.status || 'Akan Datang'
+        total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : 0,
+        status: selectedBooking.status || defaultStatus
       };
       
       const updatedBooking = await updateBooking(selectedBooking.id, updatedData);
       bookings = bookings.map(b => b.id === selectedBooking.id ? updatedBooking : b);
+      await loadData();
       showEditModal = false;
       showToastMessage('Booking berhasil diperbarui', 'success');
     } catch (err) {
@@ -420,20 +727,38 @@
   }
 
   function getStatusColor(status) {
-    switch(status) {
-      case 'Akan Datang':
-        return '#f59e0b'; // Orange
-      case 'Sedang Berlangsung':
-        return '#3b82f6'; // Blue
-      case 'Selesai':
-        return '#22c55e'; // Green
-      default:
-        return '#6b7280'; // Gray (fallback)
+    // Get color from database colors store
+    const colorData = $colors.find(color => color.custom_status === status);
+    if (colorData) {
+      return colorData.code_color;
     }
+    
+    // Fallback to first available color if status not found
+    if ($colors.length > 0) {
+      return $colors[0].code_color;
+    }
+    
+    // Ultimate fallback color
+    return '#6b7280'; // Gray
   }
 
   function getStatusText(status) {
-    return status || 'Akan Datang';
+    return status || defaultStatus;
+  }
+
+  function getTranslatedStatusText(statusText) {
+    // Map status text to translation keys
+    const statusMap = {
+      'Status Baru': 'status_baru',
+      'Dalam Proses': 'dalam_proses',
+      'Selesai': 'selesai'
+    };
+    
+    const translationKey = statusMap[statusText];
+    if (translationKey) {
+      return currentTranslations[translationKey] || statusText;
+    }
+    return statusText;
   }
 
   function handleDragStart(event, booking) {
@@ -461,47 +786,41 @@
     // Simpan referensi booking di awal untuk menghindari race condition
     const currentDraggedBooking = draggedBooking;
     
-    // Reset drag state immediately to prevent multiple calls
+    // Reset drag state segera agar tidak double-trigger
     draggedBooking = null;
     dragOverColumn = null;
     
     if (currentDraggedBooking && currentDraggedBooking.id && targetColumn) {
       try {
-        // Update status di database
-        const updatedBooking = await updateBooking(currentDraggedBooking.id, { 
-          status: targetColumn 
-        });
+        // Langsung update di database tanpa optimistic update
+        const updatedBooking = await updateBooking(currentDraggedBooking.id, { status: targetColumn });
         
-        // Pastikan updatedBooking valid
         if (!updatedBooking || !updatedBooking.id) {
           console.error('Invalid response from updateBooking:', updatedBooking);
           throw new Error('Invalid response from database');
         }
         
-        // Update local state using saved reference
-        bookings = bookings.map(booking => {
-          if (booking && booking.id === currentDraggedBooking.id) {
-            return updatedBooking;
-          }
-          return booking;
-        });
+        // Refresh data lengkap dari database untuk memastikan sinkronisasi sempurna
+        await loadData();
+        kanbanVersion += 1;
         
-        // Clear any existing error
         error = null;
-        
-        toastMessage = `Status booking diubah ke: ${targetColumn}`;
+        toastMessage = statusChangedText.replace('{status}', targetColumn);
+        toastType = 'success';
         showToast = true;
-        setTimeout(() => showToast = false, 3000);
+        setTimeout(() => (showToast = false), 3000);
         
       } catch (err) {
         console.error('Error updating booking status:', err);
-        error = 'Gagal mengubah status booking. Silakan coba lagi.';
         
-        // Refresh data untuk memastikan state konsisten
-        setTimeout(() => {
-          loadData();
-          error = null; // Clear error after reload
-        }, 1000);
+        // Refresh data untuk memastikan UI sinkron dengan database
+        await loadData();
+        kanbanVersion += 1;
+        
+        toastMessage = failedChangeStatusText;
+        toastType = 'error';
+        showToast = true;
+        setTimeout(() => (showToast = false), 3000);
       }
     }
   }
@@ -515,26 +834,20 @@
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
   <div class="flex justify-between items-center mb-8 px-5 max-w-6xl mx-auto">
     <div>
-      <h1 class="text-3xl font-semibold text-gray-200">{t('booking_manager_title')}</h1>
+              <h1 class="text-3xl font-semibold text-gray-200">{bookingManagerTitleText}</h1>
       {#if !loading && bookings.length > 0}
-        <div class="flex items-center gap-4 mt-2 text-sm text-gray-400">
-          <span class="flex items-center gap-1">
-            <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
-            {bookings.filter(b => b.status === 'Akan Datang').length} Akan Datang
-          </span>
-          <span class="flex items-center gap-1">
-            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-            {bookings.filter(b => b.status === 'Sedang Berlangsung').length} Sedang Berlangsung
-          </span>
-          <span class="flex items-center gap-1">
-            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-            {bookings.filter(b => b.status === 'Selesai').length} Selesai
-          </span>
-        </div>
+                  <div class="flex items-center gap-4 mt-2 text-sm text-gray-400">
+            {#each $colors as color}
+              <span class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full" style="background-color: {color.code_color}"></div>
+                {bookings.filter(b => getStatusText(b.status) === color.custom_status).length} {getTranslatedStatusText(color.custom_status)}
+              </span>
+            {/each}
+          </div>
       {/if}
     </div>
     <button class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" on:click={() => showForm = true}>
-      + {t('add_new_booking')}
+              + {addNewBookingText}
     </button>
   </div>
 
@@ -542,204 +855,167 @@
     <!-- Keyboard Shortcuts Info -->
     <div class="bg-gray-800 border border-gray-600 rounded-lg p-3 mb-4">
       <div class="flex items-center gap-2 text-sm text-gray-300">
-        <span class="font-medium">⌨️ Keyboard Shortcuts:</span>
+        <span class="font-medium">{keyboardShortcutsText}</span>
         <span class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+N</span>
-        <span class="text-gray-400">Tambah Booking</span>
+        <span class="text-gray-400">{tambahBookingText}</span>
         <span class="bg-gray-700 px-2 py-1 rounded text-xs">Ctrl+R</span>
-        <span class="text-gray-400">Refresh Data</span>
+        <span class="text-gray-400">{refreshDataText}</span>
         <span class="bg-gray-700 px-2 py-1 rounded text-xs">Esc</span>
-        <span class="text-gray-400">Tutup Modal</span>
+        <span class="text-gray-400">{tutupModalText}</span>
       </div>
     </div>
     
     <div class="flex flex-wrap gap-5 items-end mb-5 bg-gray-900 p-5 rounded-lg border border-gray-700">
       <div class="flex flex-col gap-1 min-w-[150px]">
-        <label for="filter" class="text-sm font-medium text-gray-200">{t('filter')}:</label>
-        <select id="filter" bind:value={selectedFilter} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[34px]">
-          <option value="all">{t('filter_all')}</option>
-          <option value="upcoming">{t('filter_upcoming')}</option>
-          <option value="past">{t('filter_completed')}</option>
+        <label for="filter" class="text-sm font-medium text-gray-200">{filterText}:</label>
+        <select id="filter" bind:value={selectedFilter} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[46px]">
+                      <option value="all">{filterAllText}</option>
+            <option value="upcoming">{filterUpcomingText}</option>
+            <option value="past">{filterCompletedText}</option>
         </select>
       </div>
       <div class="flex flex-wrap gap-4">
         <div class="flex flex-col gap-1 min-w-[150px]">
-          <label for="startDate" class="text-sm font-medium text-gray-200">{t('from')}:</label>
-          <input type="date" id="startDate" bind:value={startDate} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[34px]" />
+          <label for="startDate" class="text-sm font-medium text-gray-200">{fromText}:</label>
+          <DatePicker id="startDate" bind:value={startDate} returnType="string" placeholder="YYYY-MM-DD" class="w-full" />
         </div>
         <div class="flex flex-col gap-1 min-w-[150px]">
-          <label for="endDate" class="text-sm font-medium text-gray-200">{t('to')}:</label>
-          <input type="date" id="endDate" bind:value={endDate} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[34px]" />
+          <label for="endDate" class="text-sm font-medium text-gray-200">{toText}:</label>
+          <DatePicker id="endDate" bind:value={endDate} returnType="string" placeholder="YYYY-MM-DD" class="w-full" />
         </div>
       </div>
       <div class="flex flex-col gap-1 min-w-[200px] flex-1">
-        <label for="search" class="text-sm font-medium text-gray-200">{t('search')}:</label>
-        <input type="text" id="search" placeholder={t('search_placeholder')} bind:value={searchTerm} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[34px]" />
+        <label for="search" class="text-sm font-medium text-gray-200">{searchText}:</label>
+        <input type="text" id="search" placeholder={searchPlaceholderText} bind:value={searchTerm} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-gray-200 text-sm h-[46px]" />
       </div>
-      <div class="flex gap-2 items-center h-[34px]">
-        <label class="sr-only">Actions</label>
-        <button class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors h-[34px] flex items-center gap-1" on:click={batchMoveToTrash} disabled={Object.values(selectedIds).filter(Boolean).length === 0}>
+      <div class="flex gap-2 items-center h-[34px]" role="group" aria-labelledby="bulk-actions-label">
+        <span id="bulk-actions-label" class="sr-only">{bulkActionsText}</span>
+        <button class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors h-[34px] flex items-center gap-1" on:click={bulkDeleteSelected} disabled={Object.values(selectedIds).filter(Boolean).length === 0}>
           <Trash2 size={16} />
-          {t('batch_trash')}
+          {deleteSelectedText}
         </button>
         <button class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors h-[34px] flex items-center gap-1" on:click={exportBookings}>
           <Download size={16} />
-          {t('export')}
+          {exportText}
         </button>
         <button class="bg-green-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-green-600 transition-colors h-[34px] flex items-center gap-1" on:click={refreshData} disabled={isRefreshing}>
           <RefreshCw size={16} class={isRefreshing ? 'animate-spin' : ''} />
-          {isRefreshing ? 'Memuat...' : 'Refresh'}
+          {isRefreshing ? loadingText : refreshText}
         </button>
       </div>
     </div>
 
     <div class="flex items-center gap-4">
-      <span class="text-sm font-medium text-gray-200">{t('view')}:</span>
-      <div class="inline-flex bg-gray-900 border border-gray-700 rounded-lg overflow-hidden" role="group" aria-label="Tukar tampilan">
+              <span class="text-sm font-medium text-gray-200">{viewText}:</span>
+      <div class="inline-flex bg-gray-900 border border-gray-700 rounded-lg overflow-hidden" role="group" aria-label={tukarTampilanText}>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-2 bg-transparent border-none text-gray-200 cursor-pointer hover:bg-gray-800 {viewMode === 'table' ? 'bg-gray-800 text-green-500' : ''}"
           on:click={() => viewMode = 'table'}
           aria-pressed={viewMode === 'table'}
-          title="Tampilan Senarai"
+          title={tampilanSenaraiText}
         >
           <Table size={16} />
-          Senarai
+          {viewTableText}
         </button>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-2 bg-transparent border-none text-gray-200 cursor-pointer hover:bg-gray-800 {viewMode === 'kanban' ? 'bg-gray-800 text-green-500' : ''}"
           on:click={() => viewMode = 'kanban'}
           aria-pressed={viewMode === 'kanban'}
-          title="Tampilan Kanban"
+          title={tampilanKanbanText}
         >
           <ClipboardList size={16} />
-          Kanban
+          {viewKanbanText}
         </button>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-2 bg-transparent border-none text-gray-200 cursor-pointer hover:bg-gray-800 {viewMode === 'calendar' ? 'bg-gray-800 text-green-500' : ''}"
           on:click={() => viewMode = 'calendar'}
           aria-pressed={viewMode === 'calendar'}
-          title="Tampilan Kalendar"
+          title={tampilanKalendarText}
         >
           <Calendar size={16} />
-          Kalendar
+          {viewCalendarText}
         </button>
       </div>
       {#if viewMode === 'kanban'}
-        <div class="text-xs text-gray-400 mt-2 text-center px-2 py-2 bg-gray-950 rounded border border-gray-700">{t('drag_drop_instruction')}</div>
+        <div class="text-xs text-gray-400 mt-2 text-center px-2 py-2 bg-gray-950 rounded border border-gray-700">{dragDropInstructionText}</div>
       {/if}
     </div>
   </div>
 
   {#if showForm}
-    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showForm = false}>
-      <div class="bg-gray-900 rounded-xl p-8 w-11/12 max-w-2xl border border-gray-700 shadow-2xl" on:click|stopPropagation>
-        <div class="flex justify-between items-center mb-8">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-              <Calendar size={20} class="text-green-500" />
-            </div>
-            <h2 class="text-2xl font-bold text-gray-200">{t('add_new_booking')}</h2>
-          </div>
-          <button class="bg-gray-800 hover:bg-gray-700 border-none text-gray-400 text-2xl cursor-pointer w-10 h-10 flex items-center justify-center hover:text-gray-200 rounded-full transition-all" on:click={() => showForm = false}>×</button>
+          <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showForm = false} role="dialog" aria-modal="true" aria-label={addBookingText} tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') showForm = false; }}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation on:keydown|stopPropagation role="document">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl text-gray-200">{addNewBookingText}</h2>
+          <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showForm = false}>×</button>
         </div>
-        
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-6" on:submit|preventDefault={addBooking}>
-          <!-- Client Information Section -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-semibold text-gray-200 mb-4 flex items-center gap-2">
-              <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-              Maklumat Pelanggan
-            </h3>
-            
-            <div class="space-y-3">
-              <div class="flex flex-col gap-2">
-                <label for="contact_id" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {t('client_name')}
-                </label>
-                <select id="contact_id" bind:value={formData.contact_id} required class="bg-gray-950 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all">
-                  <option value="">Pilih Kontak</option>
-                  {#each contacts as contact}
-                    <option value={contact.id}>{contact.name}</option>
-                  {/each}
-                </select>
-              </div>
-              
-              <div class="flex flex-col gap-2">
-                <label for="employee_id" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
-                  {t('employee')} <span class="text-xs text-gray-400">(Opsional)</span>
-                </label>
-                <select id="employee_id" bind:value={formData.employee_id} class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all">
-                  <option value="">Pilih Pekerja</option>
-                  {#each employees as employee}
-                    <option value={employee.id}>{employee.name}</option>
-                  {/each}
-                </select>
-              </div>
+
+        <form class="flex flex-col gap-5" on:submit|preventDefault={addBooking}>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="newContactId" class="text-sm font-medium text-gray-200">{clientNameText}</label>
+              <select id="newContactId" bind:value={formData.contact_id} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                <option value="">{chooseContactText}</option>
+                {#each contacts as contact}
+                  <option value={contact.id}>{contact.name}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="newEmployeeId" class="text-sm font-medium text-gray-200">{employeeText} (Opsional)</label>
+              <select id="newEmployeeId" bind:value={formData.employee_id} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                <option value="">{chooseEmployeeText}</option>
+                {#each employees as employee}
+                  <option value={employee.id}>{employee.name}</option>
+                {/each}
+              </select>
             </div>
           </div>
-
-          <!-- Booking Details Section -->
-          <div class="space-y-4">
-            <h3 class="text-lg font-semibold text-gray-200 mb-4 flex items-center gap-2">
-              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-              Butiran Tempahan
-            </h3>
-            
-            <div class="space-y-3">
-              <div class="flex flex-col gap-2">
-                <label for="date" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <Calendar size={18} class="text-white" />
-                  {t('date')}
-                </label>
-                <input type="date" id="date" bind:value={formData.date} required class="bg-gray-950 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all" />
-              </div>
-              
-              <div class="flex flex-col gap-2">
-                <label for="package_name" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                  {t('package_name')}
-                </label>
-                <select id="package_name" bind:value={formData.package_name} required class="bg-gray-950 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all">
-                  <option value="">Pilih Pakej</option>
-                  {#each pricePackages as pkg}
-                    <option value={pkg.pakej}>{pkg.pakej} - RM{pkg.harga}</option>
-                  {/each}
-                </select>
-              </div>
-              
-              <div class="flex flex-col gap-2">
-                <label for="total_price" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                  {t('amount')} <span class="text-xs text-gray-400">(RM)</span>
-                </label>
-                <input type="number" id="total_price" bind:value={formData.total_price} step="0.01" placeholder="0.00" required class="bg-gray-950 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all" />
-              </div>
-              
-              <div class="flex flex-col gap-2">
-                <label for="status" class="text-sm font-medium text-gray-200 flex items-center gap-2">
-                  <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
-                  Status
-                </label>
-                <select id="status" bind:value={formData.status} required class="bg-gray-950 border border-gray-600 rounded-lg px-4 py-3.5 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all">
-                  <option value="Akan Datang">Akan Datang</option>
-                  <option value="Sedang Berlangsung">Sedang Berlangsung</option>
-                  <option value="Selesai">Selesai</option>
-                </select>
-              </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="newDate" class="text-sm font-medium text-gray-200">{dateText}</label>
+              <DatePicker id="newDate" bind:value={formData.date} required returnType="string" placeholder="YYYY-MM-DD" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="newPackageName" class="text-sm font-medium text-gray-200">{packageNameText}</label>
+              <select id="newPackageName" bind:value={formData.package_name} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors"
+                on:change={() => {
+                  const selected = pricePackages.find((p) => p.pakej === formData.package_name);
+                  formData.total_price = selected ? String(selected.harga ?? 0) : formData.total_price;
+                }}
+              >
+                <option value="">{choosePackageText}</option>
+                {#each pricePackages as pkg}
+                  <option value={pkg.pakej}>{pkg.pakej} - RM{pkg.harga}</option>
+                {/each}
+              </select>
             </div>
           </div>
-
-          <!-- Action Buttons -->
-          <div class="md:col-span-2 flex gap-4 justify-end pt-6 border-t border-gray-700">
-            <button type="button" class="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-300 px-8 py-3.5 rounded-lg text-sm font-medium hover:text-white transition-all" on:click={() => showForm = false}>
-              {t('cancel')}
-            </button>
-            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white border-none px-8 py-3.5 rounded-lg text-sm font-medium shadow-lg hover:shadow-xl transition-all" disabled={isSubmitting}>
-              {isSubmitting ? 'Menyimpan...' : t('save')}
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="newAmount" class="text-sm font-medium text-gray-200">{amountText} (RM)</label>
+              <input type="number" id="newAmount" bind:value={formData.total_price} step="0.01" placeholder="0.00" class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="newStatus" class="text-sm font-medium text-gray-200">{statusText}</label>
+              <select id="newStatus" bind:value={formData.status} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                {#each $colors as color}
+                  <option value={color.custom_status}>{color.custom_status}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+          
+          <div class="flex gap-3 justify-end mt-2.5">
+            <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showForm = false}>{cancelText}</button>
+            <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" disabled={isSubmitting}>
+              {isSubmitting ? 'Menyimpan...' : saveText}
             </button>
           </div>
         </form>
@@ -747,62 +1023,130 @@
     </div>
   {/if}
 
+  {#if showCalendarDayModal}
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showCalendarDayModal = false} role="dialog" aria-modal="true" aria-label="Detail Hari" tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') showCalendarDayModal = false; }}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="bg-gray-900 rounded-lg p-6 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation on:keydown|stopPropagation role="document">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl text-gray-200">{selectedCalendarDay?.date ? selectedCalendarDay.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}</h2>
+          <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showCalendarDayModal = false}>×</button>
+        </div>
+
+        {#if selectedCalendarDay?.bookings?.length > 0}
+          <div class="space-y-3 max-h-[60vh] overflow-auto pr-1">
+            {#each selectedCalendarDay.bookings as booking (booking.id)}
+              <div class="bg-gray-800 border border-gray-700 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-gray-200 font-semibold">{booking.contact?.name || 'N/A'}</div>
+                    <div class="text-xs text-gray-400">{booking.package_name}</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-green-400 font-semibold">{formatCurrency(booking.total_price)}</div>
+                    <span class="px-2 py-0.5 rounded text-[10px] text-white" style="background-color: {getStatusColor(booking.status)}">{getStatusText(booking.status)}</span>
+                  </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-400 flex items-center gap-3">
+                  <span>{booking.employee?.name || 'Tidak ditentukan'}</span>
+                  {#if booking.contact?.whatsapp}
+                    <a href={`https://wa.me/${booking.contact.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" class="inline-flex items-center gap-1 text-gray-300 no-underline hover:text-white transition-colors">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="14" alt="WA" />
+                      {booking.contact.whatsapp}
+                    </a>
+                  {/if}
+                </div>
+                <div class="mt-3 flex justify-end gap-2">
+                  <button class="bg-transparent border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs hover:border-green-500 hover:text-green-500" on:click={() => { showCalendarDayModal = false; openViewModal(booking); }}>Lihat</button>
+                  <button class="bg-green-600 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-green-700" on:click={() => { showCalendarDayModal = false; openEditModal(booking); }}>Edit</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="text-center text-gray-400 py-6">Tidak ada booking pada hari ini.</div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
   {#if showViewModal}
-    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showViewModal = false}>
-      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation>
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showViewModal = false} role="dialog" aria-modal="true" aria-label="Detail Booking" tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') showViewModal = false; }}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation on:keydown|stopPropagation role="document">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl text-gray-200">{t('booking_details')}</h2>
+          <h2 class="text-xl text-gray-200">{bookingDetailsText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showViewModal = false}>×</button>
         </div>
         <div class="flex flex-col gap-5">
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('client_name')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">{selectedBooking.contact?.name || 'N/A'}</span>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <span class="font-semibold text-gray-400">{clientNameText}:</span>
+              <span class="text-gray-200">{selectedBooking.contact?.name || 'N/A'}</span>
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="font-semibold text-gray-400">{phoneText}:</span>
+              <span class="text-gray-200">
+                {selectedBooking.contact?.whatsapp || 'N/A'}
+                {#if selectedBooking.contact?.whatsapp}
+                  <a href={`https://wa.me/${selectedBooking.contact.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" class="inline-flex items-center gap-1 ml-2 opacity-80 hover:opacity-100 transition-opacity">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18" alt="WA" />
+                  </a>
+                {/if}
+              </span>
+            </div>
           </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('phone')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">
-              {selectedBooking.contact?.whatsapp || 'N/A'}
-              {#if selectedBooking.contact?.whatsapp}
-                <a href={`https://wa.me/${selectedBooking.contact.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" class="inline-flex items-center gap-1 ml-2 opacity-80 hover:opacity-100 transition-opacity">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18" alt="WA" />
-                </a>
-              {/if}
-            </span>
-          </div>
+          
           {#if selectedBooking.contact?.email}
-            <div class="flex justify-between items-center py-3 border-b border-gray-700">
-              <span class="font-semibold text-gray-400 min-w-[120px]">Email:</span>
-              <span class="text-gray-200 text-right flex-1 ml-4">{selectedBooking.contact.email}</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex flex-col gap-2">
+                <span class="font-semibold text-gray-400">Email:</span>
+                <span class="text-gray-200">{selectedBooking.contact.email}</span>
+              </div>
+              <div class="flex flex-col gap-2">
+                <span class="font-semibold text-gray-400">{dateText}:</span>
+                <span class="text-gray-200">{formatDate(selectedBooking.date)}</span>
+              </div>
+            </div>
+          {:else}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex flex-col gap-2">
+                <span class="font-semibold text-gray-400">{dateText}:</span>
+                <span class="text-gray-200">{formatDate(selectedBooking.date)}</span>
+              </div>
+              <div class="flex flex-col gap-2">
+                <span class="font-semibold text-gray-400">{packageNameText}:</span>
+                <span class="text-gray-200">{selectedBooking.package_name}</span>
+              </div>
             </div>
           {/if}
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('date')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">{formatDate(selectedBooking.date)}</span>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <span class="font-semibold text-gray-400">{amountText}:</span>
+              <span class="text-gray-200">{formatCurrency(selectedBooking.total_price)}</span>
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="font-semibold text-gray-400">{employeeText}:</span>
+              <span class="text-gray-200">{selectedBooking.employee?.name || 'Tidak ditentukan'}</span>
+            </div>
           </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('package_name')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">{selectedBooking.package_name}</span>
-          </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('amount')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">{formatCurrency(selectedBooking.total_price)}</span>
-          </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-700">
-            <span class="font-semibold text-gray-400 min-w-[120px]">{t('employee')}:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">{selectedBooking.employee?.name || 'Tidak ditentukan'}</span>
-          </div>
-          <div class="flex justify-between items-center py-3">
-            <span class="font-semibold text-gray-400 min-w-[120px]">Status:</span>
-            <span class="text-gray-200 text-right flex-1 ml-4">
-              <span class="px-2 py-1 rounded text-xs font-medium text-white" style="background-color: {getStatusColor(selectedBooking.status)}">
-                {selectedBooking.status || 'Akan Datang'}
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <span class="font-semibold text-gray-400">Status:</span>
+              <span class="text-gray-200">
+                <span class="px-2 py-1 rounded text-xs font-medium text-white" style="background-color: {getStatusColor(selectedBooking.status)}">
+                  {selectedBooking.status || defaultStatus}
+                </span>
               </span>
-            </span>
+            </div>
+            <div class="flex flex-col gap-2">
+              <!-- Empty space for alignment -->
+            </div>
           </div>
           <div class="flex gap-3 justify-end mt-2.5">
-            <button class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" on:click={() => { showViewModal = false; openEditModal(selectedBooking); }}>{t('edit')}</button>
-            <button class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showViewModal = false}>{t('close')}</button>
+            <button class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" on:click={() => { showViewModal = false; openEditModal(selectedBooking); }}>{editText}</button>
+            <button class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showViewModal = false}>{closeText}</button>
           </div>
         </div>
       </div>
@@ -810,60 +1154,74 @@
   {/if}
 
   {#if showEditModal}
-    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showEditModal = false}>
-      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation>
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showEditModal = false} role="dialog" aria-modal="true" aria-label="Edit Booking" tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') showEditModal = false; }}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" on:click|stopPropagation on:keydown|stopPropagation role="document">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl text-gray-200">{t('edit_booking')}</h2>
+          <h2 class="text-xl text-gray-200">{editBookingText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showEditModal = false}>×</button>
         </div>
         <form class="flex flex-col gap-5" on:submit|preventDefault={saveEditBooking}>
-          <div class="flex flex-col gap-2">
-            <label for="editContactId" class="text-sm font-medium text-gray-200">{t('client_name')}</label>
-            <select id="editContactId" bind:value={selectedBooking.contact_id} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
-              <option value="">{t('choose_contact')}</option>
-              {#each contacts as contact}
-                <option value={contact.id}>{contact.name}</option>
-              {/each}
-            </select>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="editContactId" class="text-sm font-medium text-gray-200">{clientNameText}</label>
+              <select id="editContactId" bind:value={selectedBooking.contact_id} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                <option value="">{chooseContactText}</option>
+                {#each contacts as contact}
+                  <option value={contact.id}>{contact.name}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="editEmployeeId" class="text-sm font-medium text-gray-200">{employeeText} (Opsional)</label>
+              <select id="editEmployeeId" bind:value={selectedBooking.employee_id} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                <option value="">{chooseEmployeeText}</option>
+                {#each employees as employee}
+                  <option value={employee.id}>{employee.name}</option>
+                {/each}
+              </select>
+            </div>
           </div>
-          <div class="flex flex-col gap-2">
-            <label for="editEmployeeId" class="text-sm font-medium text-gray-200">{t('employee')} (Opsional)</label>
-            <select id="editEmployeeId" bind:value={selectedBooking.employee_id} class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
-              <option value="">{t('choose_employee')}</option>
-              {#each employees as employee}
-                <option value={employee.id}>{employee.name}</option>
-              {/each}
-            </select>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="editDate" class="text-sm font-medium text-gray-200">{dateText}</label>
+              <DatePicker id="editDate" bind:value={selectedBooking.date} required returnType="string" placeholder="YYYY-MM-DD" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="editPackageName" class="text-sm font-medium text-gray-200">{packageNameText}</label>
+              <select id="editPackageName" bind:value={selectedBooking.package_name} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors"
+                on:change={() => {
+                  const selected = pricePackages.find((p) => p.pakej === selectedBooking.package_name);
+                  selectedBooking.total_price = selected ? String(selected.harga ?? 0) : selectedBooking.total_price;
+                }}
+              >
+                <option value="">{choosePackageText}</option>
+                {#each pricePackages as pkg}
+                  <option value={pkg.pakej}>{pkg.pakej} - RM{pkg.harga}</option>
+                {/each}
+              </select>
+            </div>
           </div>
-          <div class="flex flex-col gap-2">
-            <label for="editDate" class="text-sm font-medium text-gray-200">{t('date')}</label>
-            <input type="date" id="editDate" bind:value={selectedBooking.date} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors" />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="editPackageName" class="text-sm font-medium text-gray-200">{t('package_name')}</label>
-            <select id="editPackageName" bind:value={selectedBooking.package_name} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
-              <option value="">{t('choose_package')}</option>
-              {#each pricePackages as pkg}
-                <option value={pkg.pakej}>{pkg.pakej} - RM{pkg.harga}</option>
-              {/each}
-            </select>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="editAmount" class="text-sm font-medium text-gray-200">{t('amount')} (RM)</label>
-            <input type="number" id="editAmount" bind:value={selectedBooking.total_price} step="0.01" placeholder="0.00" required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors" />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="editStatus" class="text-sm font-medium text-gray-200">Status</label>
-            <select id="editStatus" bind:value={selectedBooking.status} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
-              <option value="Akan Datang">Akan Datang</option>
-              <option value="Sedang Berlangsung">Sedang Berlangsung</option>
-              <option value="Selesai">Selesai</option>
-            </select>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label for="editAmount" class="text-sm font-medium text-gray-200">{amountText} (RM)</label>
+              <input type="number" id="editAmount" bind:value={selectedBooking.total_price} step="0.01" placeholder="0.00" class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="editStatus" class="text-sm font-medium text-gray-200">{statusText}</label>
+              <select id="editStatus" bind:value={selectedBooking.status} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors">
+                {#each $colors as color}
+                  <option value={color.custom_status}>{color.custom_status}</option>
+                {/each}
+              </select>
+            </div>
           </div>
           <div class="flex gap-3 justify-end mt-2.5">
-            <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showEditModal = false}>{t('cancel')}</button>
+            <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showEditModal = false}>{cancelText}</button>
             <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" disabled={isSubmitting}>
-              {isSubmitting ? 'Menyimpan...' : t('save')}
+              {isSubmitting ? 'Menyimpan...' : saveText}
             </button>
           </div>
         </form>
@@ -872,15 +1230,16 @@
   {/if}
 
   {#if showDeleteConfirm}
-    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showDeleteConfirm = false}>
-      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-md border border-gray-700" on:click|stopPropagation>
+          <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={() => showDeleteConfirm = false} role="dialog" aria-modal="true" aria-label={confirmDeleteText} tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') showDeleteConfirm = false; }}>
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-md border border-gray-700" on:click|stopPropagation on:keydown|stopPropagation role="document">
         <div class="flex items-center gap-3 mb-6">
           <div class="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
             <AlertTriangle size={24} class="text-red-500" />
           </div>
           <div>
-            <h2 class="text-xl font-bold text-gray-200">Konfirmasi Hapus</h2>
-            <p class="text-sm text-gray-400">Tindakan ini tidak dapat dibatalkan</p>
+            <h2 class="text-xl font-bold text-gray-200">{confirmDeleteText}</h2>
+                          <p class="text-sm text-gray-400">{actionCannotBeUndoneText}</p>
           </div>
         </div>
         
@@ -917,7 +1276,7 @@
   {#if error}
     <div class="bg-red-600 text-white px-5 py-3 rounded-md mx-auto mb-5 max-w-6xl flex justify-between items-center">
       <p class="text-sm">{error}</p>
-      <button class="bg-white/20 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-white/30 transition-colors" on:click={loadData}>Coba Lagi</button>
+      <button class="bg-white/20 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-white/30 transition-colors" on:click={loadData}>{tryAgainText}</button>
     </div>
   {/if}
 
@@ -925,32 +1284,32 @@
     {#if loading}
       <div class="text-center py-16 text-gray-400">
         <div class="animate-spin w-8 h-8 border-4 border-gray-600 border-t-green-500 rounded-full mx-auto mb-4"></div>
-        <p class="text-base">Memuat data booking...</p>
-        <p class="text-sm text-gray-500 mt-2">Mohon tunggu sebentar</p>
+        <p class="text-base">{loadingBookingsText}</p>
+        <p class="text-sm text-gray-500 mt-2">{pleaseWaitText}</p>
       </div>
     {:else if bookings.length === 0}
       <div class="text-center py-16 text-gray-400">
         <Calendar size={32} class="mx-auto mb-5" />
-        <h3 class="text-lg text-gray-200 mb-2.5">Tiada Booking Dijumpai</h3>
-        <p class="text-sm">Belum ada booking dalam sistem. Klik "Tambah Booking Baru" untuk mula.</p>
+                  <h3 class="text-lg text-gray-200 mb-2.5">{noBookingsFoundText}</h3>
+        <p class="text-sm">{noBookingsInSystemText}</p>
         <button class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors mt-5" on:click={() => showForm = true}>
-          + Tambah Booking Baru
+          + {addNewBookingButtonText}
         </button>
       </div>
     {:else if filteredBookings.length === 0 && !loading}
       <div class="text-center py-16 text-gray-400">
         <Calendar size={32} class="mx-auto mb-5" />
         {#if bookings.length === 0}
-          <h3 class="text-lg text-gray-200 mb-2.5">Belum Ada Booking</h3>
-          <p class="text-sm">Belum ada booking yang tersimpan di sistem.</p>
+                  <h3 class="text-lg text-gray-200 mb-2.5">{noBookingsTitleText}</h3>
+        <p class="text-sm">{noBookingsDescriptionText}</p>
           <button class="bg-green-500 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-green-600 transition-colors mt-2.5" on:click={() => showForm = true}>
-            Tambah Booking Pertama
+                          {addFirstBookingText}
           </button>
         {:else}
-          <h3 class="text-lg text-gray-200 mb-2.5">Tiada Booking Memenuhi Filter</h3>
-          <p class="text-sm">Terdapat {bookings.length} booking di sistem, tetapi tiada yang memenuhi kriteria filter semasa.</p>
+          <h3 class="text-lg text-gray-200 mb-2.5">{noBookingsMatchFilterText}</h3>
+          <p class="text-sm">{bookingsInSystemText.replace('{count}', bookings.length)}</p>
           <button class="bg-green-500 text-white border-none px-3 py-1.5 rounded text-xs hover:bg-green-600 transition-colors mt-2.5" on:click={() => { searchTerm = ''; selectedFilter = 'all'; startDate = ''; endDate = ''; }}>
-            Reset Filter
+            {resetFilterText}
           </button>
         {/if}
       </div>
@@ -960,21 +1319,25 @@
           <table class="w-full border-collapse">
             <thead>
               <tr>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700"><input type="checkbox" bind:checked={allSelected} on:change={toggleSelectAll} /></th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('client_name')}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('phone')}</th>
-                <th on:click={sortByDate} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer">{t('date')} {sortOrder === 'asc' ? '↑' : '↓'}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('package_name')}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('employee')}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('amount')}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">Status</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{t('actions')}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">
+                  <input type="checkbox" checked={pagedBookings.length > 0 && pagedBookings.every(b => !!selectedIds[b.id])} on:change={toggleSelectAll} />
+                </th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{clientNameText}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{phoneText}</th>
+                <th on:click={sortByDate} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer">{dateText} {sortOrder === 'asc' ? '↑' : '↓'}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{packageNameText}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{employeeText}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{amountText}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{statusText}</th>
+                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{actionsText}</th>
               </tr>
             </thead>
             <tbody>
               {#each pagedBookings as booking (booking.id)}
                 <tr class="hover:bg-gray-950">
-                  <td class="px-3 py-4 border-b border-gray-700 text-gray-200"><input type="checkbox" bind:checked={selectedIds[booking.id]} on:change={() => toggleSelectBooking(booking.id)} /></td>
+                  <td class="px-3 py-4 border-b border-gray-700 text-gray-200">
+                    <input type="checkbox" checked={!!selectedIds[booking.id]} on:change={(e) => toggleSelectBooking(booking.id, e.currentTarget.checked)} />
+                  </td>
                   <td class="px-3 py-4 border-b border-gray-700 text-gray-200 font-semibold">{booking.contact?.name || 'N/A'}</td>
                   <td class="px-3 py-4 border-b border-gray-700 text-gray-200">
                     {#if booking.contact?.whatsapp}
@@ -996,13 +1359,13 @@
                     </span>
                   </td>
                   <td class="px-3 py-4 border-b border-gray-700">
-                    <button class="bg-none border-none text-gray-400 p-1 rounded text-lg hover:bg-white/10 transition-colors" on:click={() => openViewModal(booking)} title={t('view')}>
+                    <button class="bg-none border-none text-gray-400 p-1 rounded text-lg hover:bg-white/10 transition-colors" on:click={() => openViewModal(booking)} title={viewText}>
                       <Eye size={16} />
                     </button>
-                    <button class="bg-none border-none text-gray-400 p-1 rounded text-lg hover:bg-white/10 transition-colors" on:click={() => openEditModal(booking)} title={t('edit')}>
+                    <button class="bg-none border-none text-gray-400 p-1 rounded text-lg hover:bg-white/10 transition-colors" on:click={() => openEditModal(booking)} title={editText}>
                       <Edit size={16} />
                     </button>
-                    <button class="bg-none border-none text-red-500 p-1 rounded text-lg hover:bg-red-500/10 transition-colors" on:click={() => confirmDelete(booking)} title={t('delete')}>
+                    <button class="bg-none border-none text-red-500 p-1 rounded text-lg hover:bg-red-500/10 transition-colors" on:click={() => confirmDelete(booking)} title={deleteText}>
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -1011,56 +1374,81 @@
             </tbody>
           </table>
           <div class="flex items-center gap-2.5 p-4 justify-center">
-            <button on:click={prevPage} disabled={page === 1} class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">{t('prev')}</button>
-            <span class="text-gray-200">{t('page')} {page} / {totalPages}</span>
-            <button on:click={nextPage} disabled={page === totalPages} class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">{t('next')}</button>
+            <button on:click={prevPage} disabled={page === 1} class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">{prevText}</button>
+            <span class="text-gray-200">{pageText} {page} / {totalPages}</span>
+            <button on:click={nextPage} disabled={page === totalPages} class="bg-blue-500 text-white border-none px-4 py-2 rounded-md text-sm hover:bg-blue-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">{nextText}</button>
           </div>
         </div>
       {:else if viewMode === 'kanban'}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
-          {#each ['Akan Datang', 'Sedang Berlangsung', 'Selesai'] as column}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5 transition-opacity duration-300 {kanbanFadeTransition ? 'opacity-50' : 'opacity-100'}">
+          {#each $colors as color}
             <div 
-              class="bg-gray-900 rounded-lg p-5 border border-gray-700 min-h-[400px] transition-all {dragOverColumn === column ? 'bg-gray-950 border-green-500 scale-102 shadow-inner' : ''}" 
-              on:dragover={(e) => handleDragOver(e, column)}
+              class="bg-gray-900 rounded-lg p-5 border border-gray-700 min-h-[400px] transition-all relative {dragOverColumn === color.custom_status ? 'bg-gray-950 border-green-500 scale-[1.01] shadow-inner' : ''} {isKanbanRefreshing ? 'animate-kanbanPulse' : ''} {kanbanFadeTransition ? 'animate-refreshGlow' : ''}" 
+              on:dragover={(e) => handleDragOver(e, color.custom_status)}
               on:dragenter={handleDragEnter}
-              on:drop={(e) => handleDrop(e, column)}
+              on:drop={(e) => handleDrop(e, color.custom_status)}
+              role="list"
+              aria-label={color.custom_status}
             >
-              <h3 class="text-lg font-semibold text-gray-200 mb-2.5 flex items-center gap-1" style="color: {getStatusColor(column)}">
-                <Calendar size={16} />
-                {column}
-              </h3>
-              <div class="text-sm text-gray-400 mb-5">{kanbanColumns[column].length} booking</div>
-              {#each kanbanColumns[column] as booking}
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-200 flex items-center gap-2" style="color: {color.code_color}">
+                  <Calendar size={16} />
+                  {color.custom_status}
+                  {#if kanbanFadeTransition}
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  {/if}
+                </h3>
+                <span class="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 transition-all">
+                  {kanbanColumns[color.custom_status]?.length || 0} booking
+                  {#if isKanbanRefreshing}
+                    <RefreshCw size={12} class="inline ml-1 animate-spin" />
+                  {/if}
+                </span>
+              </div>
+              {#each kanbanColumns[color.custom_status] || [] as booking (booking.id)}
                 <div 
-                  class="bg-gray-950 border border-gray-700 rounded-md p-4 mb-4 hover:border-green-500 hover:-translate-y-0.5 hover:shadow-md transition-all cursor-grab active:cursor-grabbing" 
+                  class="group bg-gray-950/80 backdrop-blur border border-gray-800 rounded-lg p-4 mb-4 hover:border-green-500/60 hover:-translate-y-0.5 hover:shadow-md transition-all cursor-grab active:cursor-grabbing animate-slideInFromLeft" 
                   draggable="true"
                   on:dragstart={(e) => handleDragStart(e, booking)}
                   on:dragend={handleDragEnd}
+                  style="border-left: 3px solid {color.code_color}; animation-delay: {(kanbanColumns[color.custom_status] || []).indexOf(booking) * 50}ms"
+                  role="listitem"
+                  aria-grabbed={draggedBooking && draggedBooking.id === booking.id ? 'true' : 'false'}
                 >
-                  <div class="flex justify-between items-center mb-2.5 gap-2">
-                    <div class="text-xs text-gray-600 cursor-grab select-none mr-2">⋮⋮</div>
-                    <strong class="text-sm font-medium text-gray-200 flex-1">{booking.contact?.name || 'N/A'}</strong>
-                    <button class="bg-none border-none text-red-500 text-lg cursor-pointer" on:click={() => deleteBookingHandler(booking.id)} title={t('delete')}>×</button>
-                  </div>
-                  <div class="flex flex-col gap-1.5 mb-2.5">
-                    <div class="text-sm font-medium text-gray-200">{booking.package_name}</div>
-                    <div class="text-xs text-gray-400">{formatDate(booking.date)}</div>
-                    <div class="text-sm font-semibold text-green-500">{formatCurrency(booking.total_price)}</div>
-                    <div class="text-xs text-gray-400">Employee: {booking.employee?.name || 'Tidak ditentukan'}</div>
-                    <div class="text-xs text-gray-400">
-                      {#if booking.contact?.whatsapp}
-                        <a href={`https://wa.me/${booking.contact.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" class="inline-flex items-center gap-1 text-gray-400 no-underline">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18" alt="WA" />
-                          {booking.contact.whatsapp}
-                        </a>
-                      {:else}
-                        N/A
-                      {/if}
+                  <div class="flex items-start gap-2 mb-3">
+                    <GripVertical size={16} class="text-gray-600 mt-1 select-none" />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <strong class="text-sm font-semibold text-gray-200 truncate">{booking.contact?.name || 'N/A'}</strong>
+                        <button class="bg-transparent border-none text-red-500 p-1 rounded hover:bg-red-500/10 transition-colors" on:click={() => deleteBookingHandler(booking.id)} title={deleteText}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      <div class="mt-1 grid grid-cols-2 gap-2 text-xs">
+                        <div class="text-gray-300 font-medium truncate">{booking.package_name}</div>
+                        <div class="text-gray-400 text-right truncate">{formatDate(booking.date)}</div>
+                        <div class="text-green-500 font-semibold">{formatCurrency(booking.total_price)}</div>
+                        <div class="text-gray-400 text-right truncate">{booking.employee?.name || 'Tidak ditentukan'}</div>
+                      </div>
+                      <div class="mt-2 text-xs text-gray-400 truncate">
+                        {#if booking.contact?.whatsapp}
+                          <a href={`https://wa.me/${booking.contact.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" class="inline-flex items-center gap-1 text-gray-400 no-underline hover:text-gray-200 transition-colors">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="14" alt="WA" />
+                            {booking.contact.whatsapp}
+                          </a>
+                        {:else}
+                          N/A
+                        {/if}
+                      </div>
                     </div>
                   </div>
-                  <div class="flex justify-end gap-1">
-                    <button class="bg-none border-none text-gray-400 p-1 text-lg hover:bg-white/10 transition-colors" on:click={() => openViewModal(booking)} title={t('view')}>👁️</button>
-                    <button class="bg-none border-none text-gray-400 p-1 text-lg hover:bg-white/10 transition-colors" on:click={() => openEditModal(booking)} title={t('edit')}>✏️</button>
+                  <div class="flex justify-end gap-1 pt-1">
+                    <button class="bg-transparent border-none text-gray-400 p-1 rounded hover:bg-white/10 transition-colors" on:click={() => openViewModal(booking)} title={viewText}>
+                      <Eye size={16} />
+                    </button>
+                    <button class="bg-transparent border-none text-gray-400 p-1 rounded hover:bg-white/10 transition-colors" on:click={() => openEditModal(booking)} title={editText}>
+                      <Edit size={16} />
+                    </button>
                   </div>
                 </div>
               {/each}
@@ -1084,7 +1472,7 @@
           
           <!-- Calendar Navigation -->
           <div class="flex items-center justify-center mb-4">
-            <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all" on:click={() => changeMonth(0)}>
+            <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all" on:click={goToCurrentMonth}>
               Bulan Ini
             </button>
           </div>
@@ -1105,13 +1493,18 @@
             <div class="grid grid-cols-7 gap-1">
               {#each calendarData as day}
                 <div 
-                  class="min-h-[120px] p-2 relative transition-all duration-200 hover:scale-105 hover:shadow-lg {day.isCurrentMonth ? 'bg-gray-800 border border-gray-600' : 'bg-gray-950 border border-gray-800 text-gray-500'} {day.isToday ? 'bg-blue-900 border-blue-400 border-2' : ''} {day.bookings.length > 0 ? 'bg-green-900/30 border-green-500/50' : ''}"
+                  class="min-h-[120px] p-2 relative transition-all duration-200 hover:scale-105 hover:shadow-lg {day.isCurrentMonth ? 'bg-gray-800 border border-gray-600' : 'bg-gray-950 border border-gray-800 text-gray-500'} {day.isToday ? 'bg-blue-900 border-blue-400 border-2' : ''}"
+                  role="button"
+                  tabindex="0"
+                  on:click={() => openCalendarDayModal(day)}
+                  on:keydown={(e) => { if(e.key==='Enter' || e.key===' ') { e.preventDefault(); openCalendarDayModal(day); } }}
+                  style={(!day.isToday && day.bookings.length > 0) ? `border-color: ${getStatusColor(day.bookings[0].status)};` : ''}
                 >
                   <!-- Date Number -->
                   <div class="text-sm font-bold text-gray-200 mb-2 flex items-center justify-between">
                     <span>{day.date.getDate()}</span>
                     {#if day.bookings.length > 0}
-                      <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span class="w-2 h-2 rounded-full" style="background-color: {getStatusColor(day.bookings[0].status)}"></span>
                     {/if}
                   </div>
                   
@@ -1119,14 +1512,14 @@
                   {#if day.bookings.length > 0}
                     <div class="space-y-1">
                       {#each day.bookings.slice(0, 3) as booking}
-                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-2 rounded-lg text-xs cursor-pointer hover:from-green-600 hover:to-green-700 transition-all shadow-md" on:click={() => openViewModal(booking)}>
+                        <button type="button" class="w-full text-left text-white p-2 rounded-lg text-xs transition-all shadow-md" style="background-color: {getStatusColor(booking.status)}" on:click|stopPropagation={() => openViewModal(booking)}>
                           <div class="font-bold mb-1 text-[10px] uppercase tracking-wide">{booking.contact?.name || 'N/A'}</div>
                           <div class="text-[9px] opacity-90">{booking.package_name}</div>
                           <div class="text-[8px] opacity-80 mt-1 flex items-center justify-between">
                             <span>RM {booking.total_price}</span>
-                            <span class="px-1 py-0.5 bg-white/20 rounded text-[7px]">{booking.status}</span>
+                            <span class="px-1 py-0.5 bg-white/20 rounded text-[7px]">{getStatusText(booking.status)}</span>
                           </div>
-                        </div>
+                        </button>
                       {/each}
                       {#if day.bookings.length > 3}
                         <div class="bg-gray-600 text-white px-2 py-1 rounded-lg text-[9px] text-center font-medium">
@@ -1220,130 +1613,43 @@
     }
   }
 
-  /* Custom date picker styling untuk tema hitam */
-  input[type="date"]::-webkit-calendar-picker-indicator {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px;
-    padding: 4px;
-    cursor: pointer;
-    filter: invert(1);
+  /* Animasi halus saat kanban refresh senyap */
+  .animate-kanbanPulse {
+    animation: kanbanPulse 0.6s ease-in-out;
+  }
+  @keyframes kanbanPulse {
+    0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.0); }
+    30% { box-shadow: 0 0 0 6px rgba(34,197,94,0.08); }
+    60% { box-shadow: 0 0 0 3px rgba(34,197,94,0.05); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.0); }
   }
 
-  input[type="date"]::-webkit-calendar-picker-indicator:hover {
-    background-color: #333333 !important;
+  /* Animasi slide in untuk kartu kanban */
+  .animate-slideInFromLeft {
+    animation: slideInFromLeft 0.5s ease-out forwards;
+  }
+  @keyframes slideInFromLeft {
+    0% {
+      opacity: 0;
+      transform: translateX(-20px) translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) translateY(0);
+    }
   }
 
-  /* Untuk Firefox */
-  input[type="date"]::-moz-calendar-picker-indicator {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px;
-    padding: 4px;
-    cursor: pointer;
-    filter: invert(1);
+  /* Animasi pulse halus untuk indikator refresh */
+  .animate-refreshGlow {
+    animation: refreshGlow 1s ease-in-out infinite;
+  }
+  @keyframes refreshGlow {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(34,197,94,0.3);
+    }
+    50% {
+      box-shadow: 0 0 15px rgba(34,197,94,0.6), 0 0 25px rgba(34,197,94,0.3);
+    }
   }
 
-  /* Untuk Edge */
-  input[type="date"]::-ms-clear,
-  input[type="date"]::-ms-expand {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px;
-    padding: 4px;
-    cursor: pointer;
-    filter: invert(1);
-  }
-
-  /* Styling untuk kalender dropdown */
-  input[type="date"]::-webkit-datetime-edit {
-    color: #e5e7eb !important;
-  }
-
-  input[type="date"]::-webkit-datetime-edit-fields-wrapper {
-    color: #e5e7eb !important;
-  }
-
-  input[type="date"]::-webkit-datetime-edit-text {
-    color: #e5e7eb !important;
-  }
-
-  input[type="date"]::-webkit-datetime-edit-month-field {
-    color: #e5e7eb !important;
-  }
-
-  input[type="date"]::-webkit-datetime-edit-day-field {
-    color: #e5e7eb !important;
-  }
-
-  input[type="date"]::-webkit-datetime-edit-year-field {
-    color: #e5e7eb !important;
-  }
-
-  /* Kalender dropdown popup - tema hitam */
-  input[type="date"]::-webkit-calendar-picker {
-    background-color: #1f2937 !important;
-    color: #ffffff !important;
-    border: 1px solid #374151 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
-  }
-
-  /* Styling untuk kalender popup */
-  ::-webkit-calendar-picker {
-    background-color: #1f2937 !important;
-    color: #ffffff !important;
-    border: 1px solid #374151 !important;
-    border-radius: 8px !important;
-  }
-
-  /* Untuk Firefox calendar popup */
-  ::-moz-calendar-picker {
-    background-color: #1f2937 !important;
-    color: #ffffff !important;
-    border: 1px solid #374151 !important;
-    border-radius: 8px !important;
-  }
-
-  /* Custom styling untuk kalender dropdown */
-  input[type="date"]:focus::-webkit-calendar-picker-indicator {
-    background-color: #000000 !important;
-  }
-
-  /* Override browser default calendar styling */
-  input[type="date"]::-webkit-inner-spin-button,
-  input[type="date"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  /* Kalender popup styling */
-  ::-webkit-calendar-picker-indicator {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px !important;
-    padding: 4px !important;
-    cursor: pointer !important;
-    filter: invert(1) !important;
-  }
-
-  /* Firefox calendar popup */
-  ::-moz-calendar-picker-indicator {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px !important;
-    padding: 4px !important;
-    cursor: pointer !important;
-    filter: invert(1) !important;
-  }
-
-  /* Edge calendar popup */
-  ::-ms-calendar-picker-indicator {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-radius: 4px !important;
-    padding: 4px !important;
-    cursor: pointer !important;
-    filter: invert(1) !important;
-  }
 </style>

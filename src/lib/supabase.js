@@ -191,6 +191,21 @@ export async function deleteBooking(id) {
   return true;
 }
 
+// Hapus banyak booking sekaligus
+export async function deleteBookingsBulk(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return true;
+  const { error } = await supabase
+    .from('bookings')
+    .delete()
+    .in('id', ids);
+
+  if (error) {
+    console.error('Error bulk deleting bookings:', error);
+    throw error;
+  }
+  return true;
+}
+
 // ========== EMPLOYEE OPERATIONS ==========
 export async function getEmployees() {
   const { data, error } = await supabase
@@ -422,5 +437,99 @@ export async function getDashboardStats() {
       pendingBookings: 0,
       newContactsToday: 0
     };
+  }
+}
+
+// Colors/Status Management Functions
+export async function getColors() {
+  try {
+    const { data, error } = await supabase
+      .from('colors')
+      .select('*')
+      .order('id');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching colors:', error);
+    throw error;
+  }
+}
+
+export async function createColor(colorData) {
+  try {
+    const { data, error } = await supabase
+      .from('colors')
+      .insert([colorData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating color:', error);
+    throw error;
+  }
+}
+
+export async function updateColor(id, colorData) {
+  try {
+    const { data, error } = await supabase
+      .from('colors')
+      .update(colorData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating color:', error);
+    throw error;
+  }
+}
+
+export async function deleteColor(id) {
+  try {
+    const { error } = await supabase
+      .from('colors')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting color:', error);
+    throw error;
+  }
+}
+
+export async function resetToDefaultColors() {
+  try {
+    // First, delete all existing colors
+    const { error: deleteError } = await supabase
+      .from('colors')
+      .delete()
+      .neq('id', 0); // Delete all records
+    
+    if (deleteError) throw deleteError;
+    
+    // Insert default colors
+    const defaultColors = [
+      { custom_status: 'Baru', code_color: '#3b82f6' },
+      { custom_status: 'Dalam Proses', code_color: '#f59e0b' },
+      { custom_status: 'Selesai', code_color: '#22c55e' }
+    ];
+    
+    const { data, error } = await supabase
+      .from('colors')
+      .insert(defaultColors)
+      .select();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error resetting to default colors:', error);
+    throw error;
   }
 }
