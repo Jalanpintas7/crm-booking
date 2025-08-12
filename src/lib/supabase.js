@@ -7,58 +7,348 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper functions untuk CRUD operations
 
+// ========== BRAND OPERATIONS ==========
+export async function getFirstBrand() {
+  try {
+    const { data, error } = await supabase
+      .from('brand')
+      .select('*')
+      .order('id', { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
+    return Array.isArray(data) && data.length > 0 ? data[0] : null;
+  } catch (error) {
+    console.error('Error fetching first brand:', error);
+    return null;
+  }
+}
+
+export async function createBrand(brandData) {
+  try {
+    // Try multiple possible schemas for brand columns
+    const payloads = [
+      { name: brandData.name ?? null, description: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, description: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, description: brandData.description ?? null },
+      { name: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { name: brandData.name ?? null, deskripsi: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, deskripsi: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, deskripsi: brandData.description ?? null }
+    ];
+
+    let lastError = null;
+    for (const payload of payloads) {
+      const { data, error } = await supabase
+        .from('brand')
+        .insert([payload])
+        .select()
+        .single();
+      if (!error) return data;
+      lastError = error;
+    }
+    throw lastError;
+  } catch (error) {
+    console.error('Error creating brand:', error);
+    throw error;
+  }
+}
+
+export async function updateBrand(id, brandData) {
+  try {
+    // Try multiple possible schemas for brand columns
+    const payloads = [
+      { name: brandData.name ?? null, description: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, description: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, description: brandData.description ?? null },
+      { name: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, keterangan: brandData.description ?? null },
+      { name: brandData.name ?? null, deskripsi: brandData.description ?? null },
+      { brand_name: brandData.name ?? null, deskripsi: brandData.description ?? null },
+      { nama_brand: brandData.name ?? null, deskripsi: brandData.description ?? null }
+    ];
+
+    let lastError = null;
+    for (const payload of payloads) {
+      const { data, error } = await supabase
+        .from('brand')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+      if (!error) return data;
+      lastError = error;
+    }
+    throw lastError;
+  } catch (error) {
+    console.error('Error updating brand:', error);
+    throw error;
+  }
+}
+
 // ========== CONTACT OPERATIONS ==========
 export async function getContacts() {
-  const { data, error } = await supabase
-    .from('contact')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching contacts:', error);
-    return [];
+  try {
+    console.log('Supabase URL:', supabaseUrl);
+    console.log('Supabase client initialized:', !!supabase);
+    
+    // Check if environment variables are set
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase environment variables not configured');
+      throw new Error('Supabase configuration missing. Please check your environment variables.');
+    }
+    
+    const { data, error } = await supabase
+      .from('contact')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Supabase error fetching contacts:', error);
+      // If table doesn't exist, return empty array instead of throwing
+      if (error.code === '42P01') { // Table doesn't exist
+        console.warn('Contact table does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
+    
+    console.log('Contacts data from Supabase:', data);
+    
+    // Process each contact to parse custom_field JSONB to customFields object
+    const processedData = (data || []).map(contact => {
+      const processedContact = { ...contact };
+      
+      // Parse custom_field JSONB to customFields object
+      if (contact.custom_field) {
+        try {
+          processedContact.customFields = JSON.parse(contact.custom_field);
+        } catch (parseError) {
+          console.warn('Error parsing custom_field JSON for contact', contact.id, ':', parseError);
+          processedContact.customFields = {};
+        }
+      } else {
+        processedContact.customFields = {};
+      }
+      
+      return processedContact;
+    });
+    
+    return processedData;
+  } catch (error) {
+    console.error('Error in getContacts function:', error);
+    throw error;
   }
-  return data || [];
 }
 
 export async function createContact(contactData) {
-  const { data, error } = await supabase
-    .from('contact')
-    .insert([contactData])
-    .select();
-  
-  if (error) {
-    console.error('Error creating contact:', error);
+  try {
+    // Prepare the data for insertion, ensuring customFields is properly formatted as JSONB
+    const insertData = {
+      id: contactData.id,
+      name: contactData.name,
+      whatsapp: contactData.whatsapp,
+      email: contactData.email,
+      custom_field: contactData.customFields ? JSON.stringify(contactData.customFields) : null
+    };
+    
+    console.log('Creating contact with data:', insertData);
+    
+    const { data, error } = await supabase
+      .from('contact')
+      .insert([insertData])
+      .select();
+    
+    if (error) {
+      console.error('Error creating contact:', error);
+      if (error.code === '42P01') { // Table doesn't exist
+        throw new Error('Contact table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    
+    // Parse custom_field back to object for frontend use
+    const result = data[0];
+    if (result.custom_field) {
+      try {
+        result.customFields = JSON.parse(result.custom_field);
+      } catch (parseError) {
+        console.warn('Error parsing custom_field JSON:', parseError);
+        result.customFields = {};
+      }
+    } else {
+      result.customFields = {};
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in createContact function:', error);
     throw error;
   }
-  return data[0];
 }
 
 export async function updateContact(id, contactData) {
-  const { data, error } = await supabase
-    .from('contact')
-    .update(contactData)
-    .eq('id', id)
-    .select();
-  
-  if (error) {
-    console.error('Error updating contact:', error);
+  try {
+    // Prepare the data for update, ensuring customFields is properly formatted as JSONB
+    const updateData = {
+      name: contactData.name,
+      whatsapp: contactData.whatsapp,
+      email: contactData.email,
+      custom_field: contactData.customFields ? JSON.stringify(contactData.customFields) : null
+    };
+    
+    console.log('Updating contact with data:', updateData);
+    
+    const { data, error } = await supabase
+      .from('contact')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating contact:', error);
+      if (error.code === '42P01') { // Table doesn't exist
+        throw new Error('Contact table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    
+    // Parse custom_field back to object for frontend use
+    const result = data[0];
+    if (result.custom_field) {
+      try {
+        result.customFields = JSON.parse(result.custom_field);
+      } catch (parseError) {
+        console.warn('Error parsing custom_field JSON:', parseError);
+        result.customFields = {};
+      }
+    } else {
+      result.customFields = {};
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in updateContact function:', error);
     throw error;
   }
-  return data[0];
 }
 
 export async function deleteContact(id) {
-  const { error } = await supabase
-    .from('contact')
-    .delete()
-    .eq('id', id);
-  
-  if (error) {
-    console.error('Error deleting contact:', error);
+  try {
+    const { error } = await supabase
+      .from('contact')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting contact:', error);
+      if (error.code === '42P01') { // Table doesn't exist
+        throw new Error('Contact table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error in deleteContact function:', error);
     throw error;
   }
-  return true;
+}
+
+// ========== CUSTOM FIELD DEFINITIONS OPERATIONS ==========
+export async function getCustomFieldDefinitions() {
+  try {
+    const { data, error } = await supabase
+      .from('custom_field_definitions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching custom field definitions:', error);
+      // If table doesn't exist, return empty array
+      if (error.code === '42P01') {
+        console.warn('Custom field definitions table does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getCustomFieldDefinitions function:', error);
+    return [];
+  }
+}
+
+export async function createCustomFieldDefinition(definitionData) {
+  try {
+    const { data, error } = await supabase
+      .from('custom_field_definitions')
+      .insert([definitionData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating custom field definition:', error);
+      if (error.code === '42P01') {
+        throw new Error('Custom field definitions table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in createCustomFieldDefinition function:', error);
+    throw error;
+  }
+}
+
+export async function updateCustomFieldDefinition(id, definitionData) {
+  try {
+    const { data, error } = await supabase
+      .from('custom_field_definitions')
+      .update(definitionData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating custom field definition:', error);
+      if (error.code === '42P01') {
+        throw new Error('Custom field definitions table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in updateCustomFieldDefinition function:', error);
+    throw error;
+  }
+}
+
+export async function deleteCustomFieldDefinition(id) {
+  try {
+    const { error } = await supabase
+      .from('custom_field_definitions')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting custom field definition:', error);
+      if (error.code === '42P01') {
+        throw new Error('Custom field definitions table does not exist. Please create the table first.');
+      }
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in deleteCustomFieldDefinition function:', error);
+    throw error;
+  }
 }
 
 // ========== BOOKINGS OPERATIONS ==========
@@ -531,5 +821,473 @@ export async function resetToDefaultColors() {
   } catch (error) {
     console.error('Error resetting to default colors:', error);
     throw error;
+  }
+}
+
+// ========== GREETING MESSAGE (WHATSAPP BOT) OPERATIONS ==========
+export async function getGreetingMessages() {
+  try {
+    const { data, error } = await supabase
+      .from('greeting_message')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching greeting messages:', error);
+    return [];
+  }
+}
+
+export async function createGreetingMessage(greetingData) {
+  try {
+    const payload = {
+      title: greetingData.title || null,
+      message: greetingData.message,
+      is_active: typeof greetingData.is_active === 'boolean' ? greetingData.is_active : true
+    };
+
+    const { data, error } = await supabase
+      .from('greeting_message')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating greeting message:', error);
+    throw error;
+  }
+}
+
+export async function updateGreetingMessage(id, greetingData) {
+  try {
+    const payload = {
+      title: greetingData.title ?? null,
+      message: greetingData.message,
+      is_active: greetingData.is_active
+    };
+
+    const { data, error } = await supabase
+      .from('greeting_message')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating greeting message:', error);
+    throw error;
+  }
+}
+
+export async function deleteGreetingMessage(id) {
+  try {
+    const { error } = await supabase
+      .from('greeting_message')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting greeting message:', error);
+    throw error;
+  }
+}
+
+// ========== RAG CONTEXT OPERATIONS ==========
+function mapRagRowToContext(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    customFields: Array.isArray(row.custom_fields) ? row.custom_fields : []
+  };
+}
+
+export async function getRagContexts() {
+  try {
+    const { data, error } = await supabase
+      .from('rag_contexts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(mapRagRowToContext);
+  } catch (error) {
+    console.error('Error fetching RAG contexts:', error);
+    return [];
+  }
+}
+
+export async function createRagContext(contextData) {
+  try {
+    const payload = {
+      name: contextData.name,
+      description: contextData.description,
+      custom_fields: Array.isArray(contextData.customFields) ? contextData.customFields : []
+    };
+    const { data, error } = await supabase
+      .from('rag_contexts')
+      .insert([payload])
+      .select()
+      .single();
+    if (error) throw error;
+    return mapRagRowToContext(data);
+  } catch (error) {
+    console.error('Error creating RAG context:', error);
+    throw error;
+  }
+}
+
+export async function updateRagContext(id, contextData) {
+  try {
+    const payload = {
+      name: contextData.name,
+      description: contextData.description,
+      custom_fields: Array.isArray(contextData.customFields) ? contextData.customFields : [],
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('rag_contexts')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return mapRagRowToContext(data);
+  } catch (error) {
+    console.error('Error updating RAG context:', error);
+    throw error;
+  }
+}
+
+export async function deleteRagContext(id) {
+  try {
+    const { error } = await supabase
+      .from('rag_contexts')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting RAG context:', error);
+    throw error;
+  }
+}
+
+// ========== CHART DATA FUNCTIONS ==========
+export async function getChartData(period = 'yesterday') {
+  try {
+    let startDate, endDate;
+    const now = new Date();
+    
+    // Set timezone to GMT+7
+    const gmtPlus7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    
+    switch (period) {
+      case 'yesterday':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'last_7_days':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(gmtPlus7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'last_30_days':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(gmtPlus7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    // Get bookings within the period
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (bookingsError) {
+      console.error('Error fetching bookings for chart:', bookingsError);
+      return getEmptyChartData();
+    }
+
+    // Get all available statuses from colors table
+    let { data: colors, error: colorsError } = await supabase
+      .from('colors')
+      .select('custom_status, code_color')
+      .order('id');
+
+    if (colorsError) {
+      console.error('Error fetching colors for chart:', colorsError);
+      return getEmptyChartData();
+    }
+
+    // If no colors defined, create default status
+    if (!colors || colors.length === 0) {
+      colors = [
+        { custom_status: 'Akan Datang', code_color: '#3b82f6' },
+        { custom_status: 'Dalam Proses', code_color: '#f59e0b' },
+        { custom_status: 'Selesai', code_color: '#22c55e' },
+        { custom_status: 'Dibatalkan', code_color: '#ef4444' }
+      ];
+    }
+
+    // Calculate statistics by status
+    const statusStats = {};
+    let totalBookings = 0;
+    let totalIncome = 0;
+
+    // Initialize stats for each status
+    colors.forEach(color => {
+      statusStats[color.custom_status] = {
+        count: 0,
+        percentage: 0,
+        color: color.code_color
+      };
+    });
+
+    // Count bookings by status
+    bookings.forEach(booking => {
+      const status = booking.status || colors[0]?.custom_status || 'Akan Datang';
+      if (statusStats[status]) {
+        statusStats[status].count++;
+        totalBookings++;
+      } else {
+        // If status not found in defined colors, add to first status
+        const firstStatus = colors[0]?.custom_status || 'Akan Datang';
+        if (statusStats[firstStatus]) {
+          statusStats[firstStatus].count++;
+          totalBookings++;
+        }
+      }
+      if (booking.total_price) {
+        totalIncome += parseFloat(booking.total_price) || 0;
+      }
+    });
+
+    // Calculate percentages
+    Object.keys(statusStats).forEach(status => {
+      statusStats[status].percentage = totalBookings > 0 
+        ? Math.round((statusStats[status].count / totalBookings) * 100) 
+        : 0;
+    });
+
+    // Get new contacts in the period
+    const { count: newContacts } = await supabase
+      .from('contact')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    // Get cancelled bookings (assuming cancelled status exists)
+    const cancelledStatus = colors.find(c => 
+      c.custom_status.toLowerCase().includes('batal') || 
+      c.custom_status.toLowerCase().includes('cancel') ||
+      c.custom_status.toLowerCase().includes('dibatalkan')
+    );
+    const cancelledCount = cancelledStatus ? statusStats[cancelledStatus.custom_status]?.count || 0 : 0;
+
+    // Get rescheduled bookings
+    const rescheduledStatus = colors.find(c => 
+      c.custom_status.toLowerCase().includes('jadual') || 
+      c.custom_status.toLowerCase().includes('schedule') ||
+      c.custom_status.toLowerCase().includes('semula')
+    );
+    const rescheduledCount = rescheduledStatus ? statusStats[rescheduledStatus.custom_status]?.count || 0 : 0;
+
+    // Get no-show bookings
+    const noShowStatus = colors.find(c => 
+      c.custom_status.toLowerCase().includes('hadir') || 
+      c.custom_status.toLowerCase().includes('show') ||
+      c.custom_status.toLowerCase().includes('tidak')
+    );
+    const noShowCount = noShowStatus ? statusStats[noShowStatus.custom_status]?.count || 0 : 0;
+
+    return {
+      period,
+      totalBookings,
+      totalIncome,
+      newContacts: newContacts || 0,
+      cancelledBookings: cancelledCount,
+      rescheduledBookings: rescheduledCount,
+      noShowBookings: noShowCount,
+      statusStats,
+      colors: colors.map(c => ({ name: c.custom_status, color: c.code_color }))
+    };
+
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    return getEmptyChartData();
+  }
+}
+
+function getEmptyChartData() {
+  return {
+    period: 'yesterday',
+    totalBookings: 0,
+    totalIncome: 0,
+    newContacts: 0,
+    cancelledBookings: 0,
+    rescheduledBookings: 0,
+    noShowBookings: 0,
+    statusStats: {},
+    colors: []
+  };
+}
+
+// ========== COMPLETED BOOKINGS INCOME DATA ==========
+export async function getCompletedBookingsIncome(period = 'yesterday') {
+  try {
+    let startDate, endDate;
+    const now = new Date();
+    
+    // Set timezone to GMT+7
+    const gmtPlus7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    
+    switch (period) {
+      case 'yesterday':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'last_7_days':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(gmtPlus7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'last_30_days':
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(gmtPlus7);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        startDate = new Date(gmtPlus7);
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    // Get all available statuses from colors table to identify completed statuses
+    let { data: colors, error: colorsError } = await supabase
+      .from('colors')
+      .select('custom_status, code_color')
+      .order('id');
+
+    if (colorsError) {
+      console.error('Error fetching colors for completed income:', colorsError);
+      return 0;
+    }
+
+    // If no colors defined, use default completed status
+    let completedStatuses = ['Selesai', 'Completed', 'Selesai'];
+    if (colors && colors.length > 0) {
+      // Find statuses that indicate completion
+      completedStatuses = colors
+        .filter(color => 
+          color.custom_status.toLowerCase().includes('selesai') ||
+          color.custom_status.toLowerCase().includes('completed') ||
+          color.custom_status.toLowerCase().includes('siap') ||
+          color.custom_status.toLowerCase().includes('done') ||
+          color.custom_status.toLowerCase().includes('finish')
+        )
+        .map(color => color.custom_status);
+    }
+
+    // If no completed statuses found, use the last status as completed
+    if (completedStatuses.length === 0 && colors && colors.length > 0) {
+      completedStatuses = [colors[colors.length - 1].custom_status];
+    }
+
+    // Get completed bookings within the period
+    const { data: completedBookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('total_price, status')
+      .in('status', completedStatuses)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (bookingsError) {
+      console.error('Error fetching completed bookings for income:', bookingsError);
+      return 0;
+    }
+
+    // Calculate total income from completed bookings
+    const totalIncome = completedBookings?.reduce((sum, booking) => 
+      sum + (parseFloat(booking.total_price) || 0), 0) || 0;
+
+    return totalIncome;
+  } catch (error) {
+    console.error('Error fetching completed bookings income:', error);
+    return 0;
+  }
+}
+
+// ========== AMOUNT RECEIVED CHART DATA ==========
+export async function getAmountReceivedData(period = 'last_30_days') {
+  try {
+    let days = 30;
+    if (period === 'yesterday') days = 1;
+    else if (period === 'last_7_days') days = 7;
+
+    const data = [];
+    const now = new Date();
+    const gmtPlus7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(gmtPlus7);
+      date.setDate(date.getDate() - i);
+      
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Get bookings for this day
+      const { data: dayBookings } = await supabase
+        .from('bookings')
+        .select('total_price')
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString());
+
+      const dayIncome = dayBookings?.reduce((sum, booking) => 
+        sum + (parseFloat(booking.total_price) || 0), 0) || 0;
+
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+        amount: dayIncome
+      });
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching amount received data:', error);
+    return [];
   }
 }

@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { currentLanguage, translations } from '../lib/stores/language.js';
-  import { getDashboardStats } from '../lib/supabase.js';
+  import { getDashboardStats, getChartData, getAmountReceivedData, getCompletedBookingsIncome } from '../lib/supabase.js';
   import { Users, Calendar, Clock, UserPlus, TrendingUp, DollarSign, Activity, CalendarDays } from 'lucide-svelte';
   
   $: language = $currentLanguage;
@@ -54,9 +54,26 @@
   let loading = true;
   let error = null;
 
+  // Chart data
+  let chartData = {
+    period: 'yesterday',
+    totalBookings: 0,
+    totalIncome: 0,
+    newContacts: 0,
+    cancelledBookings: 0,
+    rescheduledBookings: 0,
+    noShowBookings: 0,
+    statusStats: {},
+    colors: []
+  };
+  let amountReceivedData = [];
+  let completedBookingsIncome = 0;
+  let chartLoading = true;
+
   // Load dashboard stats on component mount
   onMount(async () => {
     await loadDashboardStats();
+    await loadChartData();
   });
 
   async function loadDashboardStats() {
@@ -76,6 +93,24 @@
     }
   }
 
+  async function loadChartData() {
+    try {
+      chartLoading = true;
+      const [chartResult, amountResult, completedIncome] = await Promise.all([
+        getChartData(selectedPeriod),
+        getAmountReceivedData(selectedPeriod),
+        getCompletedBookingsIncome(selectedPeriod)
+      ]);
+      chartData = chartResult;
+      amountReceivedData = amountResult;
+      completedBookingsIncome = completedIncome;
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+    } finally {
+      chartLoading = false;
+    }
+  }
+
   // Data untuk analytics (konten sebelumnya)
   let selectedPeriod = 'yesterday';
   $: periods = [
@@ -84,6 +119,11 @@
     { key: 'last_30_days', text: last30DaysText }
   ];
   
+  // Watch for period changes and reload chart data
+  $: if (selectedPeriod) {
+    loadChartData();
+  }
+  
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
     month: 'short',
@@ -91,33 +131,52 @@
     year: 'numeric'
   });
 
-  // Data dummy untuk analytics - update when language changes
+  // Reactive insights based on chart data
   $: insights = [
-    { label: newBookingsText, value: 8, change: '+12%', positive: true },
-    { label: incomeText, value: 'RM 15,420', change: '+8%', positive: true },
-    { label: activeCustomersText, value: 12, change: '+5%', positive: true },
-    { label: cancelledBookingsText, value: 2, change: '-3%', positive: false }
-  ];
-  
-  let meetingsBooked = 24;
-  let popularPages = [
-    { page: '/booking-manager', views: 156, change: '+12%' },
-    { page: '/contact-manager', views: 89, change: '+8%' },
-    { page: '/context-manager', views: 67, change: '+15%' },
-    { page: '/settings', views: 45, change: '+5%' },
-    { page: '/', views: 34, change: '+2%' }
-  ];
-  let amountReceived = [
-    { month: 'Jan', amount: 12500 },
-    { month: 'Feb', amount: 15800 },
-    { month: 'Mac', amount: 14200 },
-    { month: 'Apr', amount: 18900 },
-    { month: 'Mei', amount: 16500 },
-    { month: 'Jun', amount: 22000 }
+    { 
+      label: newBookingsText, 
+      value: chartData.totalBookings, 
+      change: chartData.totalBookings > 0 ? '+12%' : '0%', 
+      positive: chartData.totalBookings > 0 
+    },
+    { 
+      label: incomeText, 
+      value: `RM ${completedBookingsIncome.toLocaleString('ms-MY', { minimumFractionDigits: 2 })}`, 
+      change: completedBookingsIncome > 0 ? '+8%' : '0%', 
+      positive: completedBookingsIncome > 0 
+    },
+    { 
+      label: activeCustomersText, 
+      value: chartData.newContacts, 
+      change: chartData.newContacts > 0 ? '+5%' : '0%', 
+      positive: chartData.newContacts > 0 
+    },
+    { 
+      label: cancelledBookingsText, 
+      value: chartData.cancelledBookings, 
+      change: chartData.cancelledBookings > 0 ? '-3%' : '0%', 
+      positive: false 
+    },
+    { 
+      label: rescheduledText, 
+      value: chartData.rescheduledBookings, 
+      change: chartData.rescheduledBookings > 0 ? '+2%' : '0%', 
+      positive: true 
+    },
+    { 
+      label: noShowText, 
+      value: chartData.noShowBookings, 
+      change: chartData.noShowBookings > 0 ? '-1%' : '0%', 
+      positive: false 
+    }
   ];
 
   function t(key) {
     return currentTranslations[key] || key;
+  }
+
+  function formatCurrency(amount) {
+    return `RM ${parseFloat(amount).toLocaleString('ms-MY', { minimumFractionDigits: 2 })}`;
   }
 </script>
 
@@ -221,11 +280,18 @@
             {period.text}
           </button>
         {/each}
+        <button 
+          class="border border-gray-700 text-gray-400 px-4 py-2 rounded-md text-sm cursor-pointer transition-all duration-200 hover:border-green-500 hover:text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          on:click={loadChartData}
+          disabled={chartLoading}
+        >
+          {chartLoading ? 'Memuat...' : '⟳'}
+        </button>
       </div>
     </div>
 
     <!-- Dashboard Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-5">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
       <!-- Meetings Booked Card -->
       <div class="lg:col-span-1 bg-gray-900 rounded-lg p-6 border border-gray-700 min-h-48">
         <div class="flex justify-between items-center mb-5">
@@ -233,80 +299,168 @@
           <div class="text-gray-400 text-xl font-bold cursor-pointer">⋮</div>
         </div>
         <div class="text-center">
-          {#if meetingsBooked > 0}
-            <div class="text-5xl font-semibold text-gray-200 mb-2">{meetingsBooked}</div>
+          {#if chartLoading}
+            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2">...</div>
+            <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
+          {:else if chartData.totalBookings > 0}
+            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2">{chartData.totalBookings}</div>
             <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
           {:else}
             <div class="flex flex-col items-center justify-center text-center p-5 min-h-30">
               <CalendarDays size={32} class="mb-3 opacity-60 text-gray-400" />
-                             <div class="text-gray-200 text-base font-medium mb-1">{noBookingsText}</div>
-               <div class="text-gray-400 text-sm opacity-80">{noBookingsPeriodText} {(periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod).toLowerCase()}</div>
+              <div class="text-gray-200 text-base font-medium mb-1">{noBookingsText}</div>
+              <div class="text-gray-400 text-sm opacity-80">{noBookingsPeriodText} {(periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod).toLowerCase()}</div>
             </div>
           {/if}
         </div>
       </div>
 
       <!-- Insights Card -->
-      <div class="lg:col-span-2 bg-gray-900 rounded-lg p-6 border border-gray-700 min-h-75">
+      <div class="lg:col-span-3 bg-gray-900 rounded-lg p-6 border border-gray-700 min-h-75">
         <div class="flex justify-between items-center mb-5">
           <h3 class="text-lg font-medium text-gray-200">{insightsText}</h3>
+          <div class="flex items-center gap-2 text-sm text-gray-400">
+            <span>Total: {chartData.totalBookings}</span>
+            <span>•</span>
+            <span>Income: {formatCurrency(completedBookingsIncome)}</span>
+          </div>
         </div>
         
         <!-- Chart Container -->
         <div class="flex mb-6">
           <div class="flex flex-col justify-between mr-4 text-xs text-gray-400 h-38 pr-2">
-            <div class="text-right">4</div>
-            <div class="text-right">3</div>
-            <div class="text-right">2</div>
-            <div class="text-right">1</div>
-            <div class="text-right">0</div>
+            <div class="text-right">100%</div>
+            <div class="text-right">75%</div>
+            <div class="text-right">50%</div>
+            <div class="text-right">25%</div>
+            <div class="text-right">0%</div>
           </div>
-          <div class="flex-1 h-38 bg-gray-950 rounded border border-gray-700"></div>
+          <div class="flex-1 h-38 bg-gray-950 rounded border border-gray-700 relative">
+            <!-- Chart Legend -->
+            {#if !chartLoading && Object.keys(chartData.statusStats).length > 0}
+              <div class="absolute top-2 right-2 flex flex-wrap gap-2">
+                {#each Object.entries(chartData.statusStats) as [status, stats]}
+                  <div class="flex items-center gap-1 text-xs">
+                    <div class="w-3 h-3 rounded" style="background-color: {stats.color};"></div>
+                    <span class="text-gray-300">{status}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+                      {#if chartLoading}
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="flex flex-col items-center gap-2">
+                <div class="w-6 h-6 border-2 border-gray-600 border-t-green-500 rounded-full animate-spin"></div>
+                <div class="text-gray-400 text-sm">Memuat data...</div>
+              </div>
+            </div>
+            {:else if Object.keys(chartData.statusStats).length === 0}
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="text-gray-400 text-sm">Tiada data untuk tempoh ini</div>
+              </div>
+            {:else}
+              <!-- Chart bars -->
+              <div class="flex items-end justify-around h-full px-4 py-2">
+                {#each Object.entries(chartData.statusStats) as [status, stats]}
+                  <div class="flex flex-col items-center group relative">
+                    <div 
+                      class="w-8 rounded-t transition-all duration-300 hover:opacity-80 hover:scale-105 cursor-pointer"
+                      style="height: {stats.percentage}%; background-color: {stats.color};"
+                      title="{status}: {stats.count} tempahan ({stats.percentage}%)"
+                    ></div>
+                    <!-- Enhanced tooltip -->
+                    <div class="absolute bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                      <div class="font-medium">{status}</div>
+                      <div>{stats.count} tempahan</div>
+                      <div>{stats.percentage}%</div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
         </div>
 
         <!-- Stats -->
         <div class="flex flex-col gap-5">
-          <div class="flex items-center gap-4">
-            <div class="flex gap-1 min-w-24">
-              <span class="text-gray-200 text-base">0%</span>
-              <span class="text-gray-400 text-base">(0)</span>
+          {#if chartLoading}
+            <div class="flex items-center gap-4">
+              <div class="flex gap-1 min-w-24">
+                <span class="text-gray-400 text-base">...</span>
+                <span class="text-gray-400 text-base">(...)</span>
+              </div>
+              <div class="text-gray-400 text-base flex-1">Memuat...</div>
+              <div class="h-1.5 bg-gray-600 rounded-full w-0"></div>
             </div>
-            <div class="text-gray-400 text-base flex-1">{cancelledBookingsText}</div>
-            <div class="h-1.5 bg-green-500 rounded-full w-0"></div>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="flex gap-1 min-w-24">
-              <span class="text-gray-200 text-base">0%</span>
-              <span class="text-gray-400 text-base">(0)</span>
+          {:else if Object.keys(chartData.statusStats).length === 0}
+            <div class="flex items-center gap-4">
+              <div class="flex gap-1 min-w-24">
+                <span class="text-gray-400 text-base">0%</span>
+                <span class="text-gray-400 text-base">(0)</span>
+              </div>
+              <div class="text-gray-400 text-base flex-1">Tiada data</div>
+              <div class="h-1.5 bg-gray-600 rounded-full w-0"></div>
             </div>
-            <div class="text-gray-400 text-base flex-1">{rescheduledText}</div>
-            <div class="h-1.5 bg-green-500 rounded-full w-0"></div>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="flex gap-1 min-w-24">
-              <span class="text-gray-400 text-base">0%</span>
-              <span class="text-gray-400 text-base">(0)</span>
-            </div>
-            <div class="text-gray-400 text-base flex-1">{noShowText}</div>
-            <div class="h-1.5 bg-green-500 rounded-full w-0"></div>
-          </div>
+          {:else}
+            {#each Object.entries(chartData.statusStats) as [status, stats]}
+              <div class="flex items-center gap-4">
+                <div class="flex gap-1 min-w-24">
+                  <span class="text-gray-200 text-base">{stats.percentage}%</span>
+                  <span class="text-gray-400 text-base">({stats.count})</span>
+                </div>
+                <div class="text-gray-400 text-base flex-1">{status}</div>
+                <div 
+                  class="h-1.5 rounded-full transition-all duration-300"
+                  style="width: {stats.percentage}%; background-color: {stats.color};"
+                ></div>
+              </div>
+            {/each}
+          {/if}
         </div>
+
+        <!-- Summary Insights -->
+        {#if !chartLoading && Object.keys(chartData.statusStats).length > 0}
+          <div class="mt-6 pt-6 border-t border-gray-700">
+            <h4 class="text-sm font-medium text-gray-300 mb-3">Ringkasan {periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div class="bg-gray-800 rounded p-3">
+                <div class="text-gray-400 mb-1">Tempahan Baru</div>
+                <div class="text-lg font-semibold text-green-400">{chartData.newContacts}</div>
+              </div>
+              <div class="bg-gray-800 rounded p-3">
+                <div class="text-gray-400 mb-1">Dibatalkan</div>
+                <div class="text-lg font-semibold text-red-400">{chartData.cancelledBookings}</div>
+              </div>
+              <div class="bg-gray-800 rounded p-3">
+                <div class="text-gray-400 mb-1">Ditunda</div>
+                <div class="text-lg font-semibold text-yellow-400">{chartData.rescheduledBookings}</div>
+              </div>
+              <div class="bg-gray-800 rounded p-3">
+                <div class="text-gray-400 mb-1">Tidak Hadir</div>
+                <div class="text-lg font-semibold text-orange-400">{chartData.noShowBookings}</div>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Amount Received Card -->
       <div class="lg:col-span-1 bg-gray-900 rounded-lg p-6 border border-gray-700 min-h-48">
         <div class="flex justify-between items-center mb-5">
-          <h3 class="text-lg font-medium text-gray-200">{recentContactsText}</h3>
+          <h3 class="text-lg font-medium text-gray-200">{incomeText}</h3>
         </div>
         <div class="text-center">
-          {#if amountReceived && amountReceived.length > 0}
-            <div class="text-5xl font-semibold text-gray-200 mb-2">$0</div>
+          {#if chartLoading}
+            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2">...</div>
+            <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
+          {:else if completedBookingsIncome > 0}
+            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2 break-words">{formatCurrency(completedBookingsIncome)}</div>
             <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
           {:else}
             <div class="flex flex-col items-center justify-center text-center p-5 min-h-30">
               <DollarSign size={32} class="mb-3 opacity-60 text-gray-400" />
-                             <div class="text-gray-200 text-base font-medium mb-1">{noIncomeText}</div>
-               <div class="text-gray-400 text-sm opacity-80">{noIncomePeriodText} {(periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod).toLowerCase()}</div>
+              <div class="text-gray-200 text-base font-medium mb-1">{noIncomeText}</div>
+              <div class="text-gray-400 text-sm opacity-80">{noIncomePeriodText} {(periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod).toLowerCase()}</div>
             </div>
           {/if}
         </div>

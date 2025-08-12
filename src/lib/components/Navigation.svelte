@@ -2,6 +2,8 @@
   import { page } from '$app/stores';
   import { currentLanguage, translations, toggleLanguage } from '../stores/language.js';
   import { Globe, ChevronDown, Check, User } from 'lucide-svelte';
+  import { onMount } from 'svelte';
+  import { getFirstBrand } from '../supabase.js';
   
   $: currentPath = $page.url.pathname;
   $: language = $currentLanguage;
@@ -26,9 +28,15 @@
   
   let showMobileMenu = false;
   let showLanguageDropdown = false;
+  let profileButtonEl;
+  let profileModalEl;
 
   function toggleMobileMenu() {
     showMobileMenu = !showMobileMenu;
+    if (showMobileMenu) {
+      // Position modal after it's rendered
+      setTimeout(() => positionProfileModal(), 10);
+    }
   }
 
   function closeMobileMenu() {
@@ -42,6 +50,78 @@
   function closeLanguageDropdown() {
     showLanguageDropdown = false;
   }
+
+     function positionProfileModal() {
+     if (!profileButtonEl || !profileModalEl) return;
+     
+     // Check if mobile view
+     const isMobile = window.innerWidth <= 768;
+     
+     if (isMobile) {
+       // For mobile, use CSS centering instead of JavaScript positioning
+       return;
+     }
+     
+     // Reset styles first
+     profileModalEl.style.top = '';
+     profileModalEl.style.bottom = '';
+     profileModalEl.style.left = '';
+     profileModalEl.style.right = '';
+     
+     const buttonRect = profileButtonEl.getBoundingClientRect();
+     const viewportHeight = window.innerHeight;
+     const viewportWidth = window.innerWidth;
+     
+     // Estimate modal dimensions (approximate based on content)
+     const estimatedModalHeight = 320; // Approximate height including mobile nav
+     const estimatedModalWidth = 280; // Approximate width
+     
+     // Calculate available space
+     const spaceBelow = viewportHeight - buttonRect.bottom;
+     const spaceAbove = buttonRect.top;
+     
+     // Position vertically
+     if (spaceBelow >= estimatedModalHeight || spaceBelow > spaceAbove) {
+       // Show below
+       profileModalEl.style.top = `${buttonRect.bottom + 8}px`;
+     } else {
+       // Show above
+       profileModalEl.style.bottom = `${viewportHeight - buttonRect.top + 8}px`;
+     }
+     
+     // Position horizontally - align with button right edge
+     const leftPosition = Math.max(8, buttonRect.right - estimatedModalWidth);
+     
+     if (leftPosition + estimatedModalWidth > viewportWidth - 8) {
+       // Adjust if modal would overflow right
+       profileModalEl.style.right = '8px';
+     } else if (leftPosition < 8) {
+       // Adjust if modal would overflow left
+       profileModalEl.style.left = '8px';
+     } else {
+       // Align with button right edge
+       profileModalEl.style.left = `${leftPosition}px`;
+     }
+     
+     // After positioning, adjust if needed based on actual modal size
+     setTimeout(() => {
+       const actualModalRect = profileModalEl.getBoundingClientRect();
+       
+       // Check if modal goes outside viewport
+       if (actualModalRect.right > viewportWidth - 8) {
+         profileModalEl.style.left = `${viewportWidth - actualModalRect.width - 8}px`;
+       }
+       
+       if (actualModalRect.left < 8) {
+         profileModalEl.style.left = '8px';
+       }
+       
+       // Check if modal goes below viewport
+       if (actualModalRect.bottom > viewportHeight - 8) {
+         profileModalEl.style.top = `${viewportHeight - actualModalRect.height - 8}px`;
+       }
+     }, 0);
+   }
 
   function selectLanguage(lang) {
     // Immediately update the language store
@@ -60,16 +140,63 @@
   function t(key) {
     return currentTranslations[key] || key;
   }
-
-  // Close dropdown when clicking outside
-  function handleClickOutside(event) {
-    if (showLanguageDropdown && !event.target.closest('.language-dropdown-container')) {
-      showLanguageDropdown = false;
+  // Brand name from Supabase
+  let brandName = 'CRMBooking';
+  onMount(async () => {
+    try {
+      const firstBrand = await getFirstBrand();
+      if (firstBrand && firstBrand.name) {
+        brandName = firstBrand.name;
+      }
+    } catch (e) {
+      // fallback keep default
+      console.error('Gagal memuat brand dari Supabase:', e);
     }
-  }
+  });
+
+     // Close dropdown when clicking outside
+   function handleClickOutside(event) {
+     if (showLanguageDropdown && !event.target.closest('.language-dropdown-container')) {
+       showLanguageDropdown = false;
+     }
+     if (showMobileMenu && !event.target.closest('.profile-modal-container') && !event.target.closest('button[aria-label="Toggle user menu"]')) {
+       showMobileMenu = false;
+     }
+   }
+
+     // Handle window resize and scroll
+   function handleWindowEvents() {
+     if (showMobileMenu) {
+       // Add a small delay to ensure DOM is updated
+       setTimeout(() => positionProfileModal(), 0);
+     }
+   }
+   
+   // Add event listeners for better positioning
+   onMount(() => {
+     const handleResize = () => {
+       if (showMobileMenu) {
+         setTimeout(() => positionProfileModal(), 0);
+       }
+     };
+     
+     const handleScroll = () => {
+       if (showMobileMenu) {
+         setTimeout(() => positionProfileModal(), 0);
+       }
+     };
+     
+     window.addEventListener('resize', handleResize);
+     window.addEventListener('scroll', handleScroll, true);
+     
+     return () => {
+       window.removeEventListener('resize', handleResize);
+       window.removeEventListener('scroll', handleScroll, true);
+     };
+   });
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+ <svelte:window on:click={handleClickOutside} on:resize={handleWindowEvents} on:scroll={handleWindowEvents} on:keydown={(e) => { if (e.key === 'Escape' && showMobileMenu) showMobileMenu = false; }} />
 
 <!-- Main Navigation -->
 <nav class="bg-gray-900 border-b border-gray-700 px-5 h-15 flex items-center">
@@ -78,7 +205,7 @@
     <div class="flex items-center gap-8">
       <!-- Logo -->
       <div class="flex items-center gap-2">
-        <span class="text-white font-bold text-lg">CRMBooking</span>
+        <span class="text-white font-bold text-lg">{brandName}</span>
         <div class="w-2 h-2 bg-green-500 rounded-full"></div>
       </div>
       
@@ -182,33 +309,35 @@
         {/if}
       </div>
 
-      <!-- User Avatar -->
-      <button 
-        type="button"
-        class="text-green-500 hover:text-green-600 hover:border-green-600 cursor-pointer transition-colors duration-200 bg-gray-900 border-2 border-green-500 rounded-full w-9 h-9 flex items-center justify-center"
-        on:click={toggleMobileMenu}
-        on:keydown={(e) => e.key === 'Enter' && toggleMobileMenu()}
-        aria-label="Toggle user menu"
-      >
-        <User size={16} />
-      </button>
+             <!-- User Avatar -->
+       <button 
+         type="button"
+         class="text-green-500 hover:text-green-600 hover:border-green-600 cursor-pointer transition-colors duration-200 bg-gray-900 border-2 border-green-500 rounded-full w-9 h-9 flex items-center justify-center"
+         bind:this={profileButtonEl}
+         on:click={toggleMobileMenu}
+         on:keydown={(e) => e.key === 'Enter' && toggleMobileMenu()}
+         aria-label="Toggle user menu"
+       >
+         <User size={16} />
+       </button>
     </div>
   </div>
 </nav>
 
-<!-- User Account Modal -->
-{#if showMobileMenu}
-  <div 
-    class="fixed inset-0 bg-black/ flex items-start justify-end z-50 p-5"
-    on:click={closeMobileMenu}
-    role="dialog"
-    aria-modal="true"
-    aria-label="User account menu"
-  >
-    <div 
-      class="bg-gray-900 rounded-lg p-5 w-70 border border-gray-700 shadow-2xl mt-15"
-      on:click|stopPropagation
-    >
+ <!-- User Account Modal -->
+ {#if showMobileMenu}
+        <div 
+       class="fixed inset-0 bg-black/20 md:bg-black/10 z-50"
+       on:click={closeMobileMenu}
+       role="dialog"
+       aria-modal="true"
+       aria-label="User account menu"
+     >
+            <div 
+         class="profile-modal-container bg-gray-900 rounded-lg p-5 w-70 max-w-[280px] border border-gray-700 shadow-2xl backdrop-blur-sm"
+         bind:this={profileModalEl}
+         on:click|stopPropagation
+       >
       <!-- User Information Section -->
       <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-700">
         <div class="flex-shrink-0">
@@ -223,10 +352,10 @@
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-gray-200 text-sm font-semibold mb-0.5 truncate">
-            MUKHAMMAD AKHMA...
+            Tuan Pakya
           </div>
           <div class="text-gray-400 text-xs mb-1 truncate">
-            boesstom@gmail.com
+            tuanpakya@gmail.com
           </div>
         </div>
       </div>
@@ -249,8 +378,8 @@
         </a>
       </div>
       
-      <!-- Mobile Navigation (visible only on mobile) -->
-      <div class="flex flex-col mt-4 pt-4 border-t border-gray-700 md:hidden">
+             <!-- Mobile Navigation (visible only on mobile) -->
+       <div class="flex flex-col mt-4 pt-4 border-t border-gray-700 block md:hidden">
         <a 
           href="/" 
           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
@@ -286,7 +415,50 @@
         >
           {contextManagerText}
         </a>
-      </div>
-    </div>
-  </div>
-{/if}
+             </div>
+     </div>
+   </div>
+ {/if}
+
+<style>
+  .profile-modal-container {
+    position: absolute;
+    z-index: 60;
+    min-width: 250px;
+    animation: slideIn 0.2s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .profile-modal-container {
+      position: fixed;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%);
+      right: auto !important;
+      bottom: auto !important;
+      animation: fadeIn 0.2s ease-out;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+</style>

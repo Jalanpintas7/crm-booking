@@ -170,7 +170,13 @@
 
   function clickOutside(node, cb) {
     const onClick = (e) => {
-      if (!node.contains(e.target)) cb?.();
+      // Check if click is outside both the input and the popover
+      const inputContainer = inputEl;
+      const popoverContainer = popoverEl;
+      
+      if (!inputContainer?.contains(e.target) && !popoverContainer?.contains(e.target)) {
+        cb?.();
+      }
     };
     document.addEventListener('pointerdown', onClick, true);
     return { destroy() { document.removeEventListener('pointerdown', onClick, true); } };
@@ -178,15 +184,68 @@
 
   function positionPopover() {
     if (!inputEl || !popoverEl) return;
-    const rect = inputEl.getBoundingClientRect();
-    const innerHeight = window.innerHeight;
-    const below = rect.bottom + 320 < innerHeight; // rough height
-    popoverEl.style.top = below ? `${rect.height + 8}px` : `auto`;
-    popoverEl.style.bottom = below ? `auto` : `${rect.height + 8}px`;
+    
+    // Reset styles first
+    popoverEl.style.top = '';
+    popoverEl.style.bottom = '';
+    popoverEl.style.left = '';
+    popoverEl.style.right = '';
+    
+    const inputRect = inputEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Estimate popover dimensions (we'll adjust after first render)
+    const estimatedPopoverHeight = 320; // Approximate height
+    const estimatedPopoverWidth = 270; // Approximate width
+    
+    // Calculate available space
+    const spaceBelow = viewportHeight - inputRect.bottom;
+    const spaceAbove = inputRect.top;
+    
+    // Position vertically
+    if (spaceBelow >= estimatedPopoverHeight || spaceBelow > spaceAbove) {
+      // Show below
+      popoverEl.style.top = `${inputRect.bottom + 8}px`;
+    } else {
+      // Show above
+      popoverEl.style.bottom = `${viewportHeight - inputRect.top + 8}px`;
+    }
+    
+    // Position horizontally - align with input
+    const leftPosition = Math.max(8, inputRect.left);
+    const rightPosition = Math.max(8, viewportWidth - inputRect.right);
+    
+    if (leftPosition + estimatedPopoverWidth > viewportWidth - 8) {
+      // Adjust if popover would overflow right
+      popoverEl.style.right = '8px';
+    } else {
+      // Align with input left edge
+      popoverEl.style.left = `${leftPosition}px`;
+    }
+    
+    // After positioning, adjust if needed based on actual popover size
+    setTimeout(() => {
+      const actualPopoverRect = popoverEl.getBoundingClientRect();
+      
+      // Check if popover goes outside viewport
+      if (actualPopoverRect.right > viewportWidth - 8) {
+        popoverEl.style.left = `${viewportWidth - actualPopoverRect.width - 8}px`;
+      }
+      
+      if (actualPopoverRect.left < 8) {
+        popoverEl.style.left = '8px';
+      }
+    }, 0);
   }
 
   onMount(() => {
-    const onResize = () => { if (isOpen) positionPopover(); };
+    const onResize = () => { 
+      if (isOpen) {
+        // Add a small delay to ensure DOM is updated
+        setTimeout(() => positionPopover(), 0);
+      }
+    };
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onResize, true);
     return () => {
@@ -284,12 +343,27 @@
 
   .dp-icon { width: 18px; height: 18px; }
 
-  .dp-popover-wrapper { position: absolute; left: 0; right: auto; z-index: 50; }
+  .dp-popover-wrapper { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0; 
+    z-index: 50; 
+    pointer-events: none;
+  }
   .dp-popover {
-    position: absolute; min-width: 270px; width: max-content;
-    background: var(--dp-bg); color: var(--dp-text);
-    border: 1px solid var(--dp-border); border-radius: var(--dp-radius);
-    box-shadow: 0 12px 30px rgba(0,0,0,.45); padding: 8px; user-select: none;
+    position: absolute; 
+    min-width: 270px; 
+    width: max-content;
+    background: var(--dp-bg); 
+    color: var(--dp-text);
+    border: 1px solid var(--dp-border); 
+    border-radius: var(--dp-radius);
+    box-shadow: 0 12px 30px rgba(0,0,0,.45); 
+    padding: 8px; 
+    user-select: none;
+    pointer-events: auto;
   }
 
   .dp-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 8px; }

@@ -1,9 +1,10 @@
 <script>
   import { currentLanguage, translations } from '../../lib/stores/language.js';
-  import { getAvailability, getHolidays, getPricePackages, createPricePackage, updatePricePackage, deletePricePackage, createHoliday, deleteHoliday, updateAvailabilityByDay, getColors, createColor, updateColor, deleteColor, resetToDefaultColors } from '../../lib/supabase.js';
+  import { getAvailability, getHolidays, getPricePackages, createPricePackage, updatePricePackage, deletePricePackage, updateAvailabilityByDay, getColors, createColor, updateColor, deleteColor, resetToDefaultColors, getFirstBrand, createBrand, updateBrand } from '../../lib/supabase.js';
   import { colors, refreshColors } from '../../lib/stores/colors.js';
-  import { Settings, User, Bell, Shield, Palette, Database, HelpCircle, LogOut, Plus, Trash2 } from 'lucide-svelte';
+  import { Settings, User, Bell, Shield, Palette, Database, HelpCircle, LogOut, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-svelte';
   import { onMount } from 'svelte';
+  import HolidayManagement from '../../lib/components/HolidayManagement.svelte';
   
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
@@ -27,6 +28,7 @@
   $: startText = currentTranslations['start'] || 'start';
   $: endText = currentTranslations['end'] || 'end';
   $: saveAvailabilityText = currentTranslations['save_availability'] || 'save_availability';
+  $: maxAppointmentText = currentTranslations['max_appointment'] || 'max_appointment';
   $: holidayManagementText = currentTranslations['holiday_management'] || 'holiday_management';
   $: holidayManagementDescriptionText = currentTranslations['holiday_management_description'] || 'holiday_management_description';
   $: dateText = currentTranslations['date'] || 'date';
@@ -59,7 +61,7 @@
       statusUpdatedText, statusAddedText, statusDeletedText, resetSuccessText, settingsTitleText,
       brandInfoText, brandInfoDescriptionText, brandNameText, enterBrandNameText,
       dateAvailabilitySettingsText, dateAvailabilityDescriptionText, startText, endText,
-      saveAvailabilityText, holidayManagementText, holidayManagementDescriptionText,
+      saveAvailabilityText, maxAppointmentText, holidayManagementText, holidayManagementDescriptionText,
       dateText, descriptionText, addHolidayText, loadingSettingsText,
       holidayText, notHolidayText, holidayListText, noHolidaysForMonthText, deleteHolidayText,
       statusNameText, colorForStatusText, deleteStatusText, packagesPricingText,
@@ -84,15 +86,15 @@
   // Availability data from database
   let availabilityData = [];
 
-  let selectedDate = '';
-  let holidayDescription = '';
-  let isHoliday = false;
+  // Holiday state is managed at parent level and bound to child component
   let selectedMonth = new Date().getMonth();
   let selectedYear = new Date().getFullYear();
-  
+
   // Data from Supabase
   let holidays = [];
   let packages = [];
+  // Active tab below brand info: 'availability' | 'holidays' | 'statuses' | 'packages'
+  let activeTab = 'availability';
   
   // Reactive version for forcing holiday list updates (similar to Kanban)
   let holidayListVersion = 0;
@@ -106,7 +108,8 @@
         const dataToSave = {
           start_date: formatTimeForDB(dayData.start_date),
           end_date: formatTimeForDB(dayData.end_date),
-          is_active: Boolean(dayData.is_active) // Ensure it's a proper boolean
+          is_active: Boolean(dayData.is_active), // Ensure it's a proper boolean
+          max_appointment: parseInt(dayData.max_appointment) || 10 // Ensure it's a number
         };
         
         // Convert English day name to Malay for database
@@ -129,92 +132,7 @@
     }
   }
 
-  async function addHoliday() {
-    if (selectedDate && holidayDescription) {
-      try {
-        const holidayData = {
-          date: selectedDate,
-          description: holidayDescription,
-          isHoliday: isHoliday
-        };
-        const newHoliday = await createHoliday(holidayData);
-        
-        // Update local state immediately
-        holidays = [...holidays, newHoliday];
-        
-        // Force holiday list to re-render (same pattern as Kanban)
-        holidayListVersion += 1;
-        
-        // Reset form
-        selectedDate = '';
-        holidayDescription = '';
-        isHoliday = false;
-        
-        // Show success notification
-        showNotificationModal(holidayAddedSuccessText, 'success');
-      } catch (err) {
-        error = holidayAddedFailedText;
-        console.error('Error adding holiday:', err);
-        showNotificationModal('Ralat: ' + err.message, 'error');
-      }
-    }
-  }
-
-  async function deleteHolidayHandler(id) {
-    try {
-      await deleteHoliday(id);
-      
-      // Update local state immediately
-      holidays = holidays.filter(holiday => holiday.id !== id);
-      
-      // Force holiday list to re-render (same pattern as Kanban)
-      holidayListVersion += 1;
-      
-      // Show success notification
-      showNotificationModal(holidayDeletedSuccessText, 'success');
-    } catch (err) {
-      error = holidayDeletedFailedText;
-      console.error('Error deleting holiday:', err);
-      showNotificationModal('Ralat: ' + err.message, 'error');
-    }
-  }
-
-  function getMonthName(monthIndex) {
-    const months = [
-      'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun',
-      'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
-    ];
-    return months[monthIndex];
-  }
-
-  // Reactive function to get holidays for selected month/year (same pattern as Kanban)
-  $: holidaysInMonth = getHolidaysInMonth(selectedMonth, selectedYear);
-  
-  // Force holiday list to re-render when version changes (same pattern as Kanban)
-  $: _forceHolidayListRerender = holidayListVersion;
-  
-  // Ensure holiday list updates when holidays array changes
-  $: {
-    if (holidays.length >= 0) {
-      holidaysInMonth;
-    }
-  }
-  
-  function getHolidaysInMonth(month, year) {
-    return holidays.filter(holiday => {
-      const holidayDate = new Date(holiday.date);
-      return holidayDate.getMonth() === month && holidayDate.getFullYear() === year;
-    });
-  }
-
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ms-MY', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  }
+  // Holiday section logic moved into HolidayManagement component
 
   function formatTimeForInput(timeString) {
     // Convert HH:MM:SS to HH:MM for HTML time input
@@ -279,25 +197,10 @@
     { key: 'sunday', label: 'Ahad' }
   ];
 
-  const months = [
-    { value: 0, label: 'Januari' },
-    { value: 1, label: 'Februari' },
-    { value: 2, label: 'Mac' },
-    { value: 3, label: 'April' },
-    { value: 4, label: 'Mei' },
-    { value: 5, label: 'Jun' },
-    { value: 6, label: 'Julai' },
-    { value: 7, label: 'Ogos' },
-    { value: 8, label: 'September' },
-    { value: 9, label: 'Oktober' },
-    { value: 10, label: 'November' },
-    { value: 11, label: 'Disember' }
-  ];
-
-  const years = [2024, 2025, 2026, 2027, 2028];
+  // months/years moved into HolidayManagement component
 
   // Brand & Custom Settings (stored in localStorage)
-  let brand = { name: 'Nama Usaha' };
+  let brand = { id: null, name: 'Nama Usaha', description: '' };
   let statuses = [];
 
   const STORAGE_KEY = 'app_settings_v1';
@@ -323,11 +226,12 @@
       error = null;
 
       // Load data in parallel
-      const [holidaysData, packagesData, availabilityDataFromDB, colorsData] = await Promise.all([
+      const [holidaysData, packagesData, availabilityDataFromDB, colorsData, brandData] = await Promise.all([
         getHolidays(),
         getPricePackages(),
         getAvailability(),
-        getColors()
+        getColors(),
+        getFirstBrand()
       ]);
 
       holidays = holidaysData;
@@ -347,6 +251,15 @@
         color: color.code_color
       }));
 
+      // Load brand first row (support name or brand_name column)
+      if (brandData) {
+        brand = {
+          id: brandData.id,
+          name: (brandData.name ?? brandData.brand_name ?? 'Nama Usaha'),
+          description: (brandData.description ?? brandData.keterangan ?? '')
+        };
+      }
+
       // Process availability data from DB
       const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
@@ -362,7 +275,8 @@
             day: day, // Keep using English day names internally
             start_date: formatTimeForInput(existingData.start_date) || '09:00',
             end_date: formatTimeForInput(existingData.end_date) || '18:00',
-            is_active: Boolean(existingData.is_active) // Ensure it's a proper boolean
+            is_active: Boolean(existingData.is_active), // Ensure it's a proper boolean
+            max_appointment: existingData.max_appointment || 10 // Default to 10 if not set
           };
         } else {
           // Create default entry for days not in database
@@ -371,7 +285,8 @@
             day: day,
             start_date: '09:00',
             end_date: '18:00',
-            is_active: day !== 'saturday' && day !== 'sunday' // Default: weekdays enabled
+            is_active: day !== 'saturday' && day !== 'sunday', // Default: weekdays enabled
+            max_appointment: 10 // Default max appointment per day
           };
         }
       });
@@ -391,6 +306,27 @@
       const payload = { brand, statuses, packages };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {}
+  }
+
+  async function saveBrand() {
+    try {
+      if (brand.id) {
+        const updated = await updateBrand(brand.id, { name: brand.name, description: brand.description });
+        const newName = updated.name ?? updated.brand_name ?? updated.nama_brand ?? brand.name;
+        const newDesc = updated.description ?? updated.keterangan ?? updated.deskripsi ?? brand.description;
+        brand = { id: updated.id, name: newName, description: newDesc };
+        showNotificationModal('Maklumat brand berjaya dikemas kini!', 'success');
+      } else {
+        const created = await createBrand({ name: brand.name, description: brand.description });
+        const newName = created.name ?? created.brand_name ?? created.nama_brand ?? brand.name;
+        const newDesc = created.description ?? created.keterangan ?? created.deskripsi ?? brand.description;
+        brand = { id: created.id, name: newName, description: newDesc };
+        showNotificationModal('Maklumat brand berjaya disimpan!', 'success');
+      }
+    } catch (err) {
+      console.error('Error saving brand:', err);
+      showNotificationModal('Ralat menyimpan brand: ' + (err?.message || 'Gagal'), 'error');
+    }
   }
 
   async function addStatus() {
@@ -553,237 +489,233 @@
             placeholder={enterBrandNameText} 
             class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500"
           />
-        </div>
-      </div>
-
-      <!-- Date Availability Settings -->
-      <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{dateAvailabilitySettingsText}</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">{dateAvailabilityDescriptionText}</p>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-          {#each availabilityData as dayData, index}
-            <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700">
-              <div class="mb-4">
-                <label class="flex items-center gap-2.5 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    bind:checked={dayData.is_active}
-                    class="w-4.5 h-4.5 accent-green-500"
-                  />
-                  <span class="text-gray-200 text-base font-medium">{days[index]?.label || dayData.day}</span>
-                </label>
-              </div>
-              <div class="flex gap-4 {!dayData.is_active ? 'opacity-50' : ''}">
-                <div class="flex flex-col gap-1.5 flex-1">
-                  <label for={`start-${dayData.day}`} class="text-gray-400 text-xs">{startText}:</label>
-                  <input 
-                    id={`start-${dayData.day}`}
-                    type="time" 
-                    bind:value={dayData.start_date}
-                    disabled={!dayData.is_active}
-                    class="bg-neutral-800 border border-neutral-700 rounded px-2 py-2 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div class="flex flex-col gap-1.5 flex-1">
-                  <label for={`end-${dayData.day}`} class="text-gray-400 text-xs">{endText}:</label>
-                  <input 
-                    id={`end-${dayData.day}`}
-                    type="time" 
-                    bind:value={dayData.end_date}
-                    disabled={!dayData.is_active}
-                    class="bg-neutral-800 border border-neutral-700 rounded px-2 py-2 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-        
-        <button 
-          class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600" 
-          on:click={saveAvailability}
-        >
-          {saveAvailabilityText}
-        </button>
-      </div>
-
-      <!-- Holiday Management -->
-      <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{holidayManagementText}</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">{holidayManagementDescriptionText}</p>
-        
-        <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700 mb-6">
-          <div class="flex flex-col md:flex-row gap-5 mb-4">
-            <div class="flex flex-col gap-2 flex-1">
-              <label for="holidayDate" class="text-gray-200 text-sm font-medium">{dateText}</label>
-              <input 
-                type="date" 
-                id="holidayDate"
-                bind:value={selectedDate}
-                required
-                class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-3 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500"
-              />
-            </div>
-            <div class="flex flex-col gap-2 flex-1">
-              <label for="holidayDescription" class="text-gray-200 text-sm font-medium">{descriptionText}</label>
-              <input 
-                type="text" 
-                id="holidayDescription"
-                bind:value={holidayDescription}
-                placeholder={descriptionText}
-                required
-                class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-3 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 placeholder:text-neutral-600"
-              />
-            </div>
-          </div>
-          
-          <div class="flex flex-col md:flex-row gap-5">
-            <div class="flex flex-col gap-2 flex-1">
-              <label class="flex items-center gap-2.5 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  bind:checked={isHoliday}
-                  class="w-4.5 h-4.5 accent-green-500"
-                />
-                <span class="text-gray-200 text-sm">{holidayText}</span>
-              </label>
-            </div>
-            <button 
-              class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600 self-end"
-              on:click={addHoliday}
-            >
-              {addHolidayText}
+          <label for="brandDescription" class="text-gray-200 text-sm font-medium mt-3">{descriptionText}</label>
+          <textarea
+            id="brandDescription"
+            rows="3"
+            bind:value={brand.description}
+            placeholder={t('description')}
+            class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500"
+          ></textarea>
+          <div class="mt-4">
+            <button class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600" on:click={saveBrand}>
+              {t('save')}
             </button>
           </div>
         </div>
+      </div>
 
-        <!-- Holiday List -->
-        <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
-            <h3 class="text-gray-200 text-lg m-0">{holidayListText}</h3>
-            <div class="flex gap-2.5 justify-center">
-              <select 
-                bind:value={selectedMonth}
-                class="bg-neutral-800 border border-neutral-700 rounded px-3 py-2 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500"
-              >
-                {#each months as month}
-                  <option value={month.value}>{month.label}</option>
-                {/each}
-              </select>
-              <select 
-                bind:value={selectedYear}
-                class="bg-neutral-800 border border-neutral-700 rounded px-3 py-2 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500"
-              >
-                {#each years as year}
-                  <option value={year}>{year}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
+      <!-- Tabs below Brand Info -->
+      <div class="mb-6">
+        <div role="tablist" aria-label="Settings tabs" class="flex flex-wrap gap-2 border-b border-neutral-700">
+          <button role="tab" aria-selected={activeTab === 'availability'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'availability' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'availability')}>
+            {dateAvailabilitySettingsText}
+          </button>
+          <button role="tab" aria-selected={activeTab === 'holidays'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'holidays' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'holidays')}>
+            {holidayManagementText}
+          </button>
+          <button role="tab" aria-selected={activeTab === 'statuses'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'statuses' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'statuses')}>
+            {customStatusText}
+          </button>
+          <button role="tab" aria-selected={activeTab === 'packages'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'packages' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'packages')}>
+            {packagesPricingText}
+          </button>
+        </div>
+      </div>
+
+      {#if activeTab === 'availability'}
+        <!-- Date Availability Settings -->
+        <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
+          <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{dateAvailabilitySettingsText}</h2>
+          <p class="text-gray-400 text-sm m-0 mb-6">{dateAvailabilityDescriptionText}</p>
           
-          <div class="flex flex-col gap-2.5">
-            {#if holidaysInMonth.length === 0}
-              <div class="text-center py-8 text-gray-400">
-                <p class="m-0">{noHolidaysForMonthText}</p>
-              </div>
-            {:else}
-              {#each holidaysInMonth as holiday}
-                <div class="flex justify-between items-center bg-neutral-800 rounded-md p-4 border border-neutral-700">
-                  <div class="flex flex-col gap-1.5">
-                    <div class="text-gray-200 text-base font-semibold">{formatDate(holiday.date)}</div>
-                    <div class="text-gray-400 text-sm">{holiday.description}</div>
-                    <div class="text-green-500 text-xs font-medium">
-                      {holiday.isHoliday ? holidayText : notHolidayText}
+          <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+            {#each availabilityData as dayData, index}
+              <div class="bg-neutral-950 rounded-md p-5 border border-neutral-700">
+                <div class="mb-4">
+                  <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      bind:checked={dayData.is_active}
+                      class="w-4.5 h-4.5 accent-green-500"
+                    />
+                    <span class="text-gray-200 text-base font-medium">{days[index]?.label || dayData.day}</span>
+                  </label>
+                </div>
+                <div class="flex gap-4 {!dayData.is_active ? 'opacity-50' : ''}">
+                  <div class="flex flex-col gap-1.5 flex-1">
+                    <label for={`start-${dayData.day}`} class="text-gray-400 text-xs">{startText}:</label>
+                    <input 
+                      id={`start-${dayData.day}`}
+                      type="time" 
+                      bind:value={dayData.start_date}
+                      disabled={!dayData.is_active}
+                      class="bg-neutral-800 border border-neutral-700 rounded px-2 py-2 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <div class="flex flex-col gap-1.5 flex-1">
+                    <label for={`end-${dayData.day}`} class="text-gray-400 text-xs">{endText}:</label>
+                    <input 
+                      id={`end-${dayData.day}`}
+                      type="time" 
+                      bind:value={dayData.end_date}
+                      disabled={!dayData.is_active}
+                      class="bg-neutral-800 border border-neutral-700 rounded px-2 py-2 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+                
+                <!-- Max Appointment Field -->
+                <div class="flex flex-col gap-1.5 pt-2.5 {!dayData.is_active ? 'opacity-50' : ''}">
+                  <label for={`max-${dayData.day}`} class="text-gray-400 text-xs">{maxAppointmentText}:</label>
+                  <div class="flex items-center gap-2">
+                    <input 
+                      id={`max-${dayData.day}`}
+                      type="number" 
+                      min="1"
+                      max="100"
+                      bind:value={dayData.max_appointment}
+                      disabled={!dayData.is_active}
+                      class="flex-1 bg-neutral-800 border border-neutral-700 rounded px-2 py-2 text-gray-200 text-sm transition-colors focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <div class="flex flex-col">
+                      <button 
+                        type="button"
+                        class="w-6 h-6 flex items-center justify-center bg-neutral-700 border border-neutral-600 text-gray-300 hover:bg-neutral-600 hover:text-gray-200 transition-colors rounded-t-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        on:click={() => dayData.max_appointment = Math.min(100, (dayData.max_appointment || 0) + 1)}
+                        disabled={!dayData.is_active || (dayData.max_appointment || 0) >= 100}
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button 
+                        type="button"
+                        class="w-6 h-6 flex items-center justify-center bg-neutral-700 border border-neutral-600 text-gray-300 hover:bg-neutral-600 hover:text-gray-200 transition-colors rounded-b-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        on:click={() => dayData.max_appointment = Math.max(1, (dayData.max_appointment || 0) - 1)}
+                        disabled={!dayData.is_active || (dayData.max_appointment || 0) <= 1}
+                      >
+                        <ChevronDown size={12} />
+                      </button>
                     </div>
                   </div>
-                  <button 
-                    class="bg-transparent border-0 text-red-400 text-lg cursor-pointer p-1.5 rounded transition-colors hover:bg-red-400/10"
-                    on:click={() => deleteHolidayHandler(holiday.id)}
-                    title={deleteHolidayText}
-                  >
-                    ×
-                  </button>
                 </div>
-              {/each}
-            {/if}
+              </div>
+            {/each}
+          </div>
+          
+          <button 
+            class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600" 
+            on:click={saveAvailability}
+          >
+            {saveAvailabilityText}
+          </button>
+        </div>
+      {/if}
+
+      {#if activeTab === 'holidays'}
+        <!-- Holiday Management -->
+        {#key holidayListVersion}
+          <HolidayManagement
+            bind:holidays={holidays}
+            bind:holidayListVersion={holidayListVersion}
+            bind:selectedMonth
+            bind:selectedYear
+            {holidayManagementText}
+            {holidayManagementDescriptionText}
+            {dateText}
+            {descriptionText}
+            {addHolidayText}
+            {holidayText}
+            {notHolidayText}
+            {holidayListText}
+            {noHolidaysForMonthText}
+            {deleteHolidayText}
+            {holidayAddedSuccessText}
+            {holidayAddedFailedText}
+            {holidayDeletedSuccessText}
+            {holidayDeletedFailedText}
+            showNotificationModal={showNotificationModal}
+            setError={(msg) => (error = msg)}
+          />
+        {/key}
+      {/if}
+
+      {#if activeTab === 'statuses'}
+        <!-- Custom Statuses -->
+        <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
+          <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{customStatusText}</h2>
+          <p class="text-gray-400 text-sm m-0 mb-6">{customStatusDescriptionText}</p>
+          <div class="flex flex-col gap-2.5">
+            {#each statuses as status (status.id)}
+              <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
+                <input
+                  class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
+                  type="text"
+                  bind:value={status.name}
+                  placeholder={statusNameText}
+                  on:blur={() => updateStatus(status.id, status.name, status.color)}
+                />
+                <input
+                  class="w-10 h-8 border border-neutral-700 rounded-md bg-neutral-800 p-0"
+                  type="color"
+                  bind:value={status.color}
+                  aria-label={`${colorForStatusText} untuk ${status.name}`}
+                  on:change={() => updateStatus(status.id, status.name, status.color)}
+                />
+                <span class="inline-block w-6 h-6 rounded-full border border-neutral-700 ml-1" style={`background:${status.color}`}></span>
+                <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removeStatus(status.id)} title={deleteStatusText}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            {/each}
+          </div>
+          <div class="flex gap-3 mt-3">
+            <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={addStatus}>
+              <Plus size={16}/> {addStatusText}
+            </button>
+            <button class="inline-flex items-center gap-2 bg-blue-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={resetToDefault}>
+              {resetToDefaultText}
+            </button>
           </div>
         </div>
-      </div>
+      {/if}
 
-      <!-- Custom Statuses -->
-      <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{customStatusText}</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">{customStatusDescriptionText}</p>
-        <div class="flex flex-col gap-2.5">
-          {#each statuses as status (status.id)}
-            <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
-              <input
-                class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
-                type="text"
-                bind:value={status.name}
-                placeholder={statusNameText}
-                on:blur={() => updateStatus(status.id, status.name, status.color)}
-              />
-              <input
-                class="w-10 h-8 border border-neutral-700 rounded-md bg-neutral-800 p-0"
-                type="color"
-                bind:value={status.color}
-                aria-label={`${colorForStatusText} untuk ${status.name}`}
-                on:change={() => updateStatus(status.id, status.name, status.color)}
-              />
-              <span class="inline-block w-6 h-6 rounded-full border border-neutral-700 ml-1" style={`background:${status.color}`}></span>
-              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removeStatus(status.id)} title={deleteStatusText}>
-                <Trash2 size={16} />
-              </button>
-            </div>
-          {/each}
-        </div>
-        <div class="flex gap-3 mt-3">
-          <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={addStatus}>
-            <Plus size={16}/> {addStatusText}
-          </button>
-          <button class="inline-flex items-center gap-2 bg-blue-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer" on:click={resetToDefault}>
-            {resetToDefaultText}
-          </button>
-        </div>
-      </div>
-
-      <!-- Packages & Pricing -->
-      <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-        <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{packagesPricingText}</h2>
-        <p class="text-gray-400 text-sm m-0 mb-6">{packagesDescriptionText}</p>
-        <div class="flex flex-col gap-2.5">
-          {#each packages as pkg (pkg.id)}
-            <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
-              <input 
-                class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
-                type="text" 
-                bind:value={pkg.name} 
-                placeholder={packageNameText}
-                on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
-              />
-              <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden">
-                <span class="bg-neutral-700 text-gray-400 px-2.5 py-2 border-r border-neutral-700">RM</span>
+      {#if activeTab === 'packages'}
+        <!-- Packages & Pricing -->
+        <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
+          <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{packagesPricingText}</h2>
+          <p class="text-gray-400 text-sm m-0 mb-6">{packagesDescriptionText}</p>
+          <div class="flex flex-col gap-2.5">
+            {#each packages as pkg (pkg.id)}
+              <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
                 <input 
-                  class="bg-neutral-800 border-0 px-3 py-2.5 text-gray-200 text-sm w-20"
-                  type="number" 
-                  min="0" 
-                  step="1" 
-                  bind:value={pkg.price}
+                  class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
+                  type="text" 
+                  bind:value={pkg.name} 
+                  placeholder={packageNameText}
                   on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
                 />
+                <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden">
+                  <span class="bg-neutral-700 text-gray-400 px-2.5 py-2 border-r border-neutral-700">RM</span>
+                  <input 
+                    class="bg-neutral-800 border-0 px-3 py-2.5 text-gray-200 text-sm w-20"
+                    type="number" 
+                    min="0" 
+                    step="1" 
+                    bind:value={pkg.price}
+                    on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
+                  />
+                </div>
+                <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removePackage(pkg.id)} title={deletePackageText}>
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removePackage(pkg.id)} title={deletePackageText}>
-                <Trash2 size={16} />
-              </button>
-            </div>
-          {/each}
+            {/each}
+          </div>
+          <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer mt-3" on:click={addPackage}>
+            <Plus size={16}/> {addPackageText}
+          </button>
         </div>
-        <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer mt-3" on:click={addPackage}>
-          <Plus size={16}/> {addPackageText}
-        </button>
-      </div>
+      {/if}
     </div>
   {/if}
 
@@ -845,6 +777,33 @@
     }
   }
 
+  /* Custom styling for time input icons */
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+  }
+  
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+  
+  /* Firefox and other browsers */
+  input[type="time"]::-moz-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+  }
+  
+  input[type="time"]::-moz-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+  
+  /* Edge and IE */
+  input[type="time"]::-ms-clear,
+  input[type="time"]::-ms-expand {
+    filter: invert(1);
+    opacity: 0.7;
+  }
+  
   /* Mobile responsive adjustments */
   @media (max-width: 768px) {
     .min-h-\[calc\(100vh-100px\)\] {
