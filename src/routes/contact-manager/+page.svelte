@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { currentLanguage, translations } from '../../lib/stores/language.js';
   import { getContacts, createContact, updateContact, deleteContact } from '../../lib/supabase.js';
+  import { contactCustomFields } from '../../lib/stores/customFields.js';
   import { Users, UserPlus, Search, Filter, Plus, Eye, Edit, Trash2, Table as TableIcon, LayoutGrid, Settings } from 'lucide-svelte';
   
   $: language = $currentLanguage;
@@ -172,7 +173,22 @@
   let viewMode = 'card'; // 'card' | 'table'
   let selectedIds = {};
   $: selectedCount = Object.values(selectedIds).filter(Boolean).length;
-  $: isAllSelected = contacts.length > 0 && contacts.every((c) => selectedIds[c.id]);
+  let searchQuery = '';
+  $: normalizedQuery = (searchQuery || '').trim().toLowerCase();
+  $: filteredContacts = normalizedQuery
+    ? contacts.filter((c) => {
+        const values = [];
+        if (c.name) values.push(String(c.name));
+        if (c.whatsapp) values.push(String(c.whatsapp));
+        if (c.email) values.push(String(c.email));
+        const customVals = Object.values(c.customFields || {}).map((v) =>
+          typeof v === 'boolean' ? (v ? 'ya' : 'tidak') : String(v)
+        );
+        values.push(...customVals);
+        return values.join(' ').toLowerCase().includes(normalizedQuery);
+      })
+    : contacts;
+  $: isAllSelected = filteredContacts.length > 0 && filteredContacts.every((c) => selectedIds[c.id]);
   
   let formData = {
     name: '',
@@ -184,29 +200,10 @@
   // Load contacts on component mount
   onMount(async () => {
     await loadContacts();
-    
-    // Initialize with some example custom fields for testing
-    customFields = [
-      {
-        id: '1',
-        name: 'Jabatan',
-        type: 'text',
-        required: false
-      },
-      {
-        id: '2',
-        name: 'Umur',
-        type: 'number',
-        required: false
-      },
-      {
-        id: '3',
-        name: 'Status Aktif',
-        type: 'boolean',
-        required: false
-      }
-    ];
   });
+
+  // Selaraskan customFields dengan store persist
+  $: customFields = $contactCustomFields || [];
 
   async function loadContacts() {
     try {
@@ -314,8 +311,8 @@
     if (isAllSelected) {
       selectedIds = {};
     } else {
-      const next = {};
-      for (const c of contacts) next[c.id] = true;
+      const next = { ...selectedIds };
+      for (const c of filteredContacts) next[c.id] = true;
       selectedIds = next;
     }
   }
@@ -350,7 +347,8 @@
       required: newCustomField.required
     };
     
-    customFields = [...customFields, field];
+    // Simpan ke store persist
+    contactCustomFields.update((arr) => [...(arr || []), field]);
     
     // Reset form
     newCustomField = {
@@ -365,7 +363,7 @@
   }
 
   function deleteCustomField(index) {
-    customFields = customFields.filter((_, i) => i !== index);
+    contactCustomFields.update((arr) => (arr || []).filter((_, i) => i !== index));
   }
 
   function resetCustomFieldForm() {
@@ -378,9 +376,20 @@
 </script>
 
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
-  <div class="flex justify-between items-center mb-8 px-5 max-w-6xl mx-auto">
+  <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8 px-5 max-w-6xl mx-auto">
     <h1 class="text-3xl font-semibold text-gray-200">{pageTitleText}</h1>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <div class="relative">
+        <input
+          type="text"
+          placeholder={searchText}
+          bind:value={searchQuery}
+          class="bg-gray-900 border border-gray-700 rounded-md pl-9 pr-3 py-2.5 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors w-full sm:w-64"
+        />
+        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">
+          <Search size={16} />
+        </span>
+      </div>
       <div class="inline-flex bg-gray-900 border border-gray-700 rounded-lg overflow-hidden" role="group" aria-label={switchViewText}>
         <button
           type="button"
@@ -416,13 +425,13 @@
   </div>
 
   {#if selectedCount > 0}
-    <div class="flex justify-between items-center py-2.5 px-5 bg-green-950 border border-green-900 text-green-200 rounded-lg max-w-6xl mx-auto mb-4">
-      <div class="flex items-center gap-2">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-2.5 px-5 bg-green-950 border border-green-900 text-green-200 rounded-lg max-w-6xl mx-auto mb-4">
+      <div class="flex items-center gap-2 flex-wrap">
         <input id="select-all-top" type="checkbox" checked={isAllSelected} on:change={toggleSelectAll} />
         <label for="select-all-top">{selectAllText}</label>
         <span class="ml-2 text-sm text-gray-400">{selectedCount} {selectedText}</span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 sm:self-auto self-start">
                   <button class="flex items-center gap-1 bg-red-500 text-white border-none px-3.5 py-2.5 rounded-md text-sm hover:bg-red-600 transition-colors" on:click={bulkDeleteSelected} title={deleteSelectedText}>
             <Trash2 size={16} /> {deleteSelectedText}
           </button>
@@ -438,13 +447,13 @@
       on:click={() => showForm = false}
       on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter') && (showForm = false)}
     >
-      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="bg-gray-900 rounded-lg p-6 sm:p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-xl text-gray-200">{addNewContactText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => showForm = false}>×</button>
         </div>
         
-        <form class="flex flex-col gap-5" on:submit|preventDefault={addContact}>
+        <form class="flex flex-col gap-4 sm:gap-5" on:submit|preventDefault={addContact}>
           <div class="flex flex-col gap-2">
             <label for="name" class="text-sm font-medium text-gray-200">{nameLabelText}</label>
             <input 
@@ -539,7 +548,7 @@
             </div>
           {/if}
           
-          <div class="flex gap-3 justify-end mt-2.5">
+          <div class="flex gap-2 sm:gap-3 justify-end mt-2.5">
             <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showForm = false}>
               {cancelText}
             </button>
@@ -567,7 +576,7 @@
       <div class="text-center py-16 text-gray-400">
         <p class="text-base">{loadingContactsText}</p>
       </div>
-    {:else if contacts.length === 0}
+    {:else if filteredContacts.length === 0}
       <div class="text-center py-16 text-gray-400">
         <Users size={32} class="mx-auto mb-5" />
         <h3 class="text-lg text-gray-200 mb-2.5">{noContactsText}</h3>
@@ -575,8 +584,8 @@
       </div>
     {:else}
       {#if viewMode === 'card'}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {#each contacts as contact (contact.id)}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {#each filteredContacts as contact (contact.id)}
             <div class="bg-gray-900 rounded-lg p-5 border border-gray-700 hover:border-green-500 transition-colors">
               <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center gap-2.5">
@@ -635,7 +644,7 @@
         </div>
       {:else}
         <div class="w-full overflow-x-auto">
-          <table class="w-full border-collapse bg-gray-900 border border-gray-700 rounded-lg">
+          <table class="w-full min-w-[720px] border-collapse bg-gray-900 border border-gray-700 rounded-lg">
             <thead>
               <tr>
                 <th class="w-10 px-3 py-3 border-b border-gray-700 bg-gray-950 text-gray-200 font-semibold text-left">
@@ -653,7 +662,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each contacts as contact (contact.id)}
+              {#each filteredContacts as contact (contact.id)}
                 <tr>
                   <td class="px-3 py-3 border-b border-gray-700 text-gray-200">
                     <input
@@ -711,7 +720,7 @@
       on:click={() => (showViewModal = false)}
       on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter') && (showViewModal = false)}
     >
-      <div class="bg-gray-900 rounded-lg p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="bg-gray-900 rounded-lg p-6 sm:p-8 w-11/12 max-w-lg border border-gray-700" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-xl text-gray-200">{contactDetailsText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => (showViewModal = false)}>×</button>
@@ -770,7 +779,7 @@
           <h2 class="text-xl text-gray-200">{editContactText}</h2>
           <button class="bg-none border-none text-gray-400 text-2xl cursor-pointer w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={() => (showEditModal = false)}>×</button>
         </div>
-        <form class="flex flex-col gap-5" on:submit|preventDefault={saveEdit}>
+        <form class="flex flex-col gap-4 sm:gap-5" on:submit|preventDefault={saveEdit}>
           <div class="flex flex-col gap-2">
             <label for="edit-name" class="text-sm font-medium text-gray-200">{nameLabelText}</label>
             <input
@@ -862,7 +871,7 @@
               </div>
             </div>
           {/if}
-          <div class="flex gap-3 justify-end mt-2.5">
+          <div class="flex gap-2 sm:gap-3 justify-end mt-2.5">
             <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => (showEditModal = false)}>{cancelText}</button>
             <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">{saveChangesText}</button>
           </div>

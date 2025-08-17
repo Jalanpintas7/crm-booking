@@ -1,6 +1,6 @@
 <script>
   import { page } from '$app/stores';
-  import { currentLanguage, translations, toggleLanguage } from '../stores/language.js';
+  import { currentLanguage, translations, toggleLanguage, setLanguage } from '../stores/language.js';
   import { Globe, ChevronDown, Check, User } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { getFirstBrand } from '../supabase.js';
@@ -124,14 +124,8 @@
    }
 
   function selectLanguage(lang) {
-    // Immediately update the language store
-    currentLanguage.set(lang);
-    
-    // Force immediate reactivity by triggering a store update
-    currentLanguage.update(current => current);
-    
-    // Force a reactive update by accessing the store
-    currentLanguage.subscribe(() => {});
+    // Use the new setLanguage function which handles localStorage
+    setLanguage(lang);
     
     // Close the dropdown
     showLanguageDropdown = false;

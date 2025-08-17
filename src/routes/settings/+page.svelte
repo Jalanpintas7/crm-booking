@@ -1,10 +1,13 @@
 <script>
   import { currentLanguage, translations } from '../../lib/stores/language.js';
-  import { getAvailability, getHolidays, getPricePackages, createPricePackage, updatePricePackage, deletePricePackage, updateAvailabilityByDay, getColors, createColor, updateColor, deleteColor, resetToDefaultColors, getFirstBrand, createBrand, updateBrand } from '../../lib/supabase.js';
+  import { getAvailability, getHolidays, updateAvailabilityByDay, getColors, createColor, updateColor, deleteColor, resetToDefaultColors, getFirstBrand, createBrand, updateBrand } from '../../lib/supabase.js';
   import { colors, refreshColors } from '../../lib/stores/colors.js';
   import { Settings, User, Bell, Shield, Palette, Database, HelpCircle, LogOut, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import HolidayManagement from '../../lib/components/HolidayManagement.svelte';
+  import EmployeeManagement from '../../lib/components/EmployeeManagement.svelte';
+  import WorkflowToggle from '../../lib/components/WorkflowToggle.svelte';
+  import ProductAndServices from '../../lib/components/ProductAndServices.svelte';
   
   $: language = $currentLanguage;
   $: currentTranslations = translations[language] || translations.ms;
@@ -43,11 +46,7 @@
   $: statusNameText = currentTranslations['status_name'] || 'status_name';
   $: colorForStatusText = currentTranslations['color_for_status'] || 'color_for_status';
   $: deleteStatusText = currentTranslations['delete_status'] || 'delete_status';
-  $: packagesPricingText = currentTranslations['packages_pricing'] || 'packages_pricing';
-  $: packagesDescriptionText = currentTranslations['packages_description'] || 'packages_description';
-  $: packageNameText = currentTranslations['package_name'] || 'package_name';
-  $: addPackageText = currentTranslations['add_package'] || 'add_package';
-  $: deletePackageText = currentTranslations['delete_package'] || 'delete_package';
+
   $: holidayAddedSuccessText = currentTranslations['holiday_added_success'] || 'holiday_added_success';
   $: holidayAddedFailedText = currentTranslations['holiday_added_failed'] || 'holiday_added_failed';
   $: holidayDeletedSuccessText = currentTranslations['holiday_deleted_success'] || 'holiday_deleted_success';
@@ -64,8 +63,7 @@
       saveAvailabilityText, maxAppointmentText, holidayManagementText, holidayManagementDescriptionText,
       dateText, descriptionText, addHolidayText, loadingSettingsText,
       holidayText, notHolidayText, holidayListText, noHolidaysForMonthText, deleteHolidayText,
-      statusNameText, colorForStatusText, deleteStatusText, packagesPricingText,
-      packagesDescriptionText, packageNameText, addPackageText, deletePackageText,
+      statusNameText, colorForStatusText, deleteStatusText,
       holidayAddedSuccessText, holidayAddedFailedText, holidayDeletedSuccessText, holidayDeletedFailedText;
     }
   }
@@ -92,8 +90,7 @@
 
   // Data from Supabase
   let holidays = [];
-  let packages = [];
-  // Active tab below brand info: 'availability' | 'holidays' | 'statuses' | 'packages'
+  // Active tab below brand info: 'availability' | 'holidays' | 'statuses' | 'packages' | 'workflow' | 'employees'
   let activeTab = 'availability';
   
   // Reactive version for forcing holiday list updates (similar to Kanban)
@@ -226,9 +223,8 @@
       error = null;
 
       // Load data in parallel
-      const [holidaysData, packagesData, availabilityDataFromDB, colorsData, brandData] = await Promise.all([
+      const [holidaysData, availabilityDataFromDB, colorsData, brandData] = await Promise.all([
         getHolidays(),
-        getPricePackages(),
         getAvailability(),
         getColors(),
         getFirstBrand()
@@ -237,12 +233,6 @@
       holidays = holidaysData;
       // Force holiday list to update after loading data
       holidayListVersion += 1;
-      
-      packages = packagesData.map(pkg => ({
-        id: pkg.id,
-        name: pkg.pakej,
-        price: pkg.harga
-      }));
       
       // Load colors from database
       statuses = colorsData.map(color => ({
@@ -303,7 +293,7 @@
 
   function saveAllSettings() {
     try {
-      const payload = { brand, statuses, packages };
+      const payload = { brand, statuses };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {}
   }
@@ -354,6 +344,12 @@
   }
 
   async function removeStatus(id) {
+    // Cegah penghapusan untuk 4 status teratas
+    const idx = statuses.findIndex((s) => s.id === id);
+    if (idx > -1 && idx < 4) {
+      showNotificationModal('Tidak bisa menghapus 4 status teratas', 'error');
+      return;
+    }
     try {
       await deleteColor(id);
       statuses = statuses.filter((s) => s.id !== id);
@@ -412,46 +408,7 @@
     }
   }
 
-  async function addPackage() {
-    try {
-      const packageData = {
-        pakej: 'Pakej Baru',
-        harga: 0
-      };
-      const newPkg = await createPricePackage(packageData);
-      packages = [...packages, {
-        id: newPkg.id,
-        name: newPkg.pakej,
-        price: newPkg.harga
-      }];
-    } catch (err) {
-      error = 'Gagal menambah pakej. Silakan coba lagi.';
-      console.error('Error adding package:', err);
-    }
-  }
 
-  async function removePackage(id) {
-    try {
-      await deletePricePackage(id);
-      packages = packages.filter((p) => p.id !== id);
-    } catch (err) {
-      error = 'Gagal menghapus pakej. Silakan coba lagi.';
-      console.error('Error deleting package:', err);
-    }
-  }
-
-  async function updatePackage(id, name, price) {
-    try {
-      const packageData = {
-        pakej: name,
-        harga: parseFloat(price) || 0
-      };
-      await updatePricePackage(id, packageData);
-    } catch (err) {
-      error = 'Gagal memperbarui pakej. Silakan coba lagi.';
-      console.error('Error updating package:', err);
-    }
-  }
 </script>
 
 <div class="min-h-[calc(100vh-100px)] mt-10 w-full max-w-none p-0">
@@ -518,7 +475,13 @@
             {customStatusText}
           </button>
           <button role="tab" aria-selected={activeTab === 'packages'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'packages' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'packages')}>
-            {packagesPricingText}
+            Product & Services
+          </button>
+          <button role="tab" aria-selected={activeTab === 'workflow'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'workflow' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'workflow')}>
+            On/Off Workflow
+          </button>
+          <button role="tab" aria-selected={activeTab === 'employees'} class={`px-4 py-2 text-sm rounded-t-md border border-neutral-700 border-b-0 ${activeTab === 'employees' ? 'bg-neutral-900 text-green-400' : 'bg-neutral-800 text-gray-400 hover:text-gray-200'}`} on:click={() => (activeTab = 'employees')}>
+            Pekerja
           </button>
         </div>
       </div>
@@ -645,7 +608,7 @@
           <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{customStatusText}</h2>
           <p class="text-gray-400 text-sm m-0 mb-6">{customStatusDescriptionText}</p>
           <div class="flex flex-col gap-2.5">
-            {#each statuses as status (status.id)}
+            {#each statuses as status, index (status.id)}
               <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
                 <input
                   class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
@@ -662,7 +625,12 @@
                   on:change={() => updateStatus(status.id, status.name, status.color)}
                 />
                 <span class="inline-block w-6 h-6 rounded-full border border-neutral-700 ml-1" style={`background:${status.color}`}></span>
-                <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removeStatus(status.id)} title={deleteStatusText}>
+                <button
+                  class={`inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded transition-colors ${index < 4 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-red-500/30'}`}
+                  on:click={() => removeStatus(status.id)}
+                  title={index < 4 ? 'Status default tidak bisa dihapus' : deleteStatusText}
+                  disabled={index < 4}
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -680,41 +648,32 @@
       {/if}
 
       {#if activeTab === 'packages'}
-        <!-- Packages & Pricing -->
-        <div class="bg-neutral-900 rounded-lg p-8 border border-neutral-700 mb-8">
-          <h2 class="text-xl font-semibold text-gray-200 m-0 mb-2.5">{packagesPricingText}</h2>
-          <p class="text-gray-400 text-sm m-0 mb-6">{packagesDescriptionText}</p>
-          <div class="flex flex-col gap-2.5">
-            {#each packages as pkg (pkg.id)}
-              <div class="flex items-center gap-2.5 bg-neutral-950 border border-neutral-700 rounded-md p-2.5">
-                <input 
-                  class="bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2.5 text-gray-200 text-sm flex-1"
-                  type="text" 
-                  bind:value={pkg.name} 
-                  placeholder={packageNameText}
-                  on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
-                />
-                <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden">
-                  <span class="bg-neutral-700 text-gray-400 px-2.5 py-2 border-r border-neutral-700">RM</span>
-                  <input 
-                    class="bg-neutral-800 border-0 px-3 py-2.5 text-gray-200 text-sm w-20"
-                    type="number" 
-                    min="0" 
-                    step="1" 
-                    bind:value={pkg.price}
-                    on:blur={() => updatePackage(pkg.id, pkg.name, pkg.price)}
-                  />
-                </div>
-                <button class="inline-flex items-center justify-center w-8 h-8 bg-red-500/20 text-red-400 border-0 rounded cursor-pointer transition-colors hover:bg-red-500/30" on:click={() => removePackage(pkg.id)} title={deletePackageText}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            {/each}
-          </div>
-          <button class="inline-flex items-center gap-2 bg-green-500 text-white border-0 px-3.5 py-2.5 rounded-md text-sm cursor-pointer mt-3" on:click={addPackage}>
-            <Plus size={16}/> {addPackageText}
-          </button>
-        </div>
+        <!-- Product & Services -->
+        <ProductAndServices {showNotificationModal} />
+      {/if}
+
+      {#if activeTab === 'workflow'}
+        <WorkflowToggle webhookUrl="https://n8n-ezaj8apw.runner.web.id/webhook/f4453173-dce4-462e-88fb-1b41b8b6a713" />
+      {/if}
+
+      {#if activeTab === 'employees'}
+        <EmployeeManagement
+          titleText="Pekerja"
+          descriptionText="Kelola data pekerja yang akan menangani booking"
+          nameLabelText={t('name')}
+          whatsappLabelText={t('whatsapp')}
+          emailLabelText={t('email')}
+          addEmployeeText="Tambah Pekerja"
+          saveText={t('save')}
+          cancelText={t('cancel')}
+          editText={t('edit')}
+          deleteText={t('delete')}
+          employeeDetailsText="Detail Pekerja"
+          editEmployeeText="Edit Pekerja"
+          closeText={t('close')}
+          loadingText={t('loading')}
+          emptyText="Belum ada pekerja"
+        />
       {/if}
     </div>
   {/if}

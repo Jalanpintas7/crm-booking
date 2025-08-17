@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { currentLanguage, translations } from '../lib/stores/language.js';
-  import { getDashboardStats, getChartData, getAmountReceivedData, getCompletedBookingsIncome } from '../lib/supabase.js';
+  import { getDashboardStats, getChartData, getAmountReceivedData } from '../lib/supabase.js';
   import { Users, Calendar, Clock, UserPlus, TrendingUp, DollarSign, Activity, CalendarDays } from 'lucide-svelte';
   
   $: language = $currentLanguage;
@@ -67,7 +67,6 @@
     colors: []
   };
   let amountReceivedData = [];
-  let completedBookingsIncome = 0;
   let chartLoading = true;
 
   // Load dashboard stats on component mount
@@ -96,14 +95,12 @@
   async function loadChartData() {
     try {
       chartLoading = true;
-      const [chartResult, amountResult, completedIncome] = await Promise.all([
+      const [chartResult, amountResult] = await Promise.all([
         getChartData(selectedPeriod),
-        getAmountReceivedData(selectedPeriod),
-        getCompletedBookingsIncome(selectedPeriod)
+        getAmountReceivedData(selectedPeriod)
       ]);
       chartData = chartResult;
       amountReceivedData = amountResult;
-      completedBookingsIncome = completedIncome;
     } catch (err) {
       console.error('Error loading chart data:', err);
     } finally {
@@ -141,9 +138,9 @@
     },
     { 
       label: incomeText, 
-      value: `RM ${completedBookingsIncome.toLocaleString('ms-MY', { minimumFractionDigits: 2 })}`, 
-      change: completedBookingsIncome > 0 ? '+8%' : '0%', 
-      positive: completedBookingsIncome > 0 
+      value: `RM ${Number(chartData.totalIncome || 0).toLocaleString('ms-MY', { minimumFractionDigits: 2 })}`, 
+      change: (chartData.totalIncome || 0) > 0 ? '+8%' : '0%', 
+      positive: (chartData.totalIncome || 0) > 0 
     },
     { 
       label: activeCustomersText, 
@@ -322,7 +319,7 @@
           <div class="flex items-center gap-2 text-sm text-gray-400">
             <span>Total: {chartData.totalBookings}</span>
             <span>•</span>
-            <span>Income: {formatCurrency(completedBookingsIncome)}</span>
+            <span>Income: {formatCurrency(chartData.totalIncome)}</span>
           </div>
         </div>
         
@@ -453,8 +450,8 @@
           {#if chartLoading}
             <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2">...</div>
             <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
-          {:else if completedBookingsIncome > 0}
-            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2 break-words">{formatCurrency(completedBookingsIncome)}</div>
+          {:else if chartData.totalIncome > 0}
+            <div class="text-2xl sm:text-3xl lg:text-4xl font-semibold text-gray-200 mb-2 break-words">{formatCurrency(chartData.totalIncome)}</div>
             <div class="text-gray-400 text-base">{periods.find(p => p.key === selectedPeriod)?.text || selectedPeriod}</div>
           {:else}
             <div class="flex flex-col items-center justify-center text-center p-5 min-h-30">

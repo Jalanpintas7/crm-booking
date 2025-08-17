@@ -332,16 +332,49 @@
   .dp-root { position: relative; display: inline-block; width: 100%; }
 
   .dp-input {
-    display: flex; align-items: center; gap: 8px; width: 100%;
-    cursor: pointer; box-sizing: border-box;
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    width: 100%;
+    cursor: pointer; 
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
   }
   .dp-input.dp-disabled { opacity: .6; cursor: not-allowed; }
 
-  .dp-input-field { flex: 1; background: transparent; border: 0; outline: none; font: inherit; }
+  .dp-input-field { 
+    flex: 1; 
+    background: transparent; 
+    border: 0; 
+    outline: none; 
+    font: inherit; 
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  .dp-clear-btn { background: transparent; border: 0; font-size: 18px; line-height: 1; cursor: pointer; }
+  .dp-clear-btn { 
+    background: transparent; 
+    border: 0; 
+    font-size: 18px; 
+    line-height: 1; 
+    cursor: pointer; 
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
 
-  .dp-icon { width: 18px; height: 18px; }
+  .dp-icon { 
+    width: 18px; 
+    height: 18px; 
+    flex-shrink: 0;
+  }
 
   .dp-popover-wrapper { 
     position: fixed; 

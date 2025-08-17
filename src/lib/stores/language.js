@@ -1,7 +1,32 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 
-// Create a writable store for language
-export const currentLanguage = writable('ms'); // 'ms' for Malay, 'en' for English
+// Function to get saved language from localStorage or default to 'ms'
+function getSavedLanguage() {
+  if (browser) {
+    try {
+      return localStorage.getItem('selectedLanguage') || 'ms';
+    } catch (e) {
+      console.error('Error reading from localStorage:', e);
+      return 'ms';
+    }
+  }
+  return 'ms';
+}
+
+// Function to save language to localStorage
+function saveLanguage(lang) {
+  if (browser) {
+    try {
+      localStorage.setItem('selectedLanguage', lang);
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  }
+}
+
+// Create a writable store for language with persistence
+export const currentLanguage = writable(getSavedLanguage());
 
 // Language data
 export const translations = {
@@ -37,7 +62,7 @@ export const translations = {
      'new_contacts_today': 'Kenalan Baru Hari Ini',
     
          // Analytics
-     'analytics': 'Analitik',
+     'analytics': 'Laporan',
      'recent_booking': 'Tempahan Terkini',
      'recent_contacts': 'Pembayaran Terkini',
      'no_bookings': 'Tiada tempahan baru',
@@ -103,7 +128,7 @@ export const translations = {
      'no_bookings_message': 'Tiada tempahan dijumpai. Cuba ubah penapis atau tambah tempahan baru.',
      'choose_contact': 'Pilih Kontak',
      'choose_employee': 'Pilih Pekerja',
-     'choose_package': 'Pilih Paket',
+     'choose_package': 'Pilih Pakej',
      'employee': 'Pekerja',
      'select_all': 'Pilih semua',
      'selected': 'dipilih',
@@ -319,7 +344,7 @@ export const translations = {
     'new_contacts_today': 'New Contacts Today',
     
     // Analytics
-    'analytics': 'Analytics',
+    'analytics': 'Reports',
     'recent_booking': 'Recent Booking',
     'recent_contacts': 'Recent Payments',
     'no_bookings': 'No new bookings',
@@ -577,8 +602,20 @@ export function t(key) {
   return translations[current]?.[key] || key;
 }
 
+// Function to set language and save to localStorage
+export function setLanguage(lang) {
+  currentLanguage.set(lang);
+  saveLanguage(lang);
+}
+
 // Function to toggle language
 export function toggleLanguage() {
   const current = currentLanguage.get();
-  currentLanguage.set(current === 'ms' ? 'en' : 'ms');
-} 
+  const newLang = current === 'ms' ? 'en' : 'ms';
+  setLanguage(newLang);
+}
+
+// Subscribe to language changes and save to localStorage
+currentLanguage.subscribe((lang) => {
+  saveLanguage(lang);
+}); 

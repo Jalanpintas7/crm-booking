@@ -3,7 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Anon Key exists:', !!supabaseAnonKey);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Test the connection
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('Supabase connection error:', error);
+  } else {
+    console.log('Supabase connected successfully');
+  }
+});
 
 // Helper functions untuk CRUD operations
 
@@ -523,18 +535,119 @@ export async function createEmployee(employeeData) {
   return data[0];
 }
 
+export async function updateEmployee(id, employeeData) {
+  try {
+    const { data, error } = await supabase
+      .from('employee')
+      .update(employeeData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    throw error;
+  }
+}
+
+export async function deleteEmployee(id) {
+  try {
+    const { error } = await supabase
+      .from('employee')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    throw error;
+  }
+}
+
 // ========== PRICE PACKAGE OPERATIONS ==========
-export async function getPricePackages() {
-  const { data, error } = await supabase
-    .from('price_package')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching price packages:', error);
+export async function checkAvailableTables() {
+  try {
+    console.log('Checking available tables...');
+    
+    const { data, error } = await supabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public')
+      .order('table_name');
+    
+    if (error) {
+      console.error('Error checking tables:', error);
+      return [];
+    }
+    
+    console.log('Available tables:', data);
+    return data || [];
+  } catch (err) {
+    console.error('Error in checkAvailableTables:', err);
     return [];
   }
-  return data || [];
+}
+
+export async function getPricePackages() {
+  try {
+    console.log('Fetching price packages from price_package table...');
+    
+    // First, let's check if the table exists and get its structure
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public')
+      .eq('table_name', 'price_package');
+    
+    if (tableError) {
+      console.error('Error checking table existence:', tableError);
+    } else {
+      console.log('Table info:', tableInfo);
+    }
+    
+    // Try to fetch data from price_package table
+    const { data, error } = await supabase
+      .from('price_package')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching price packages:', error);
+      
+      // If table doesn't exist, try alternative table names
+      if (error.code === '42P01') { // Table doesn't exist
+        console.log('price_package table not found, trying alternative names...');
+        
+        const alternativeTables = ['price_packages', 'packages', 'products', 'services'];
+        
+        for (const tableName of alternativeTables) {
+          try {
+            console.log(`Trying table: ${tableName}`);
+            const { data: altData, error: altError } = await supabase
+              .from(tableName)
+              .select('*')
+              .order('created_at', { ascending: false });
+            
+            if (!altError && altData) {
+              console.log(`Found data in ${tableName} table:`, altData);
+              return altData;
+            }
+          } catch (altErr) {
+            console.log(`Table ${tableName} not accessible:`, altErr.message);
+          }
+        }
+      }
+      
+      return [];
+    }
+    
+    console.log('Successfully fetched price packages:', data);
+    return data || [];
+  } catch (err) {
+    console.error('Unexpected error in getPricePackages:', err);
+    return [];
+  }
 }
 
 export async function createPricePackage(packageData) {
@@ -1289,5 +1402,98 @@ export async function getAmountReceivedData(period = 'last_30_days') {
   } catch (error) {
     console.error('Error fetching amount received data:', error);
     return [];
+  }
+}
+
+// ========== STORAGE: IMAGES BUCKET ==========
+export const IMAGE_BUCKET = 'images';
+
+// Dapatkan URL publik untuk path gambar (butuh bucket public atau signed URL)
+export function getPublicUrlForImage(path) {
+  try {
+    const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+    return data?.publicUrl || '';
+  } catch (error) {
+    console.error('Error generating public URL:', error);
+    return '';
+  }
+}
+
+// List file di root bucket images (non-recursive)
+export async function listBucketImages(prefix = '') {
+  try {
+    const { data, error } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .list(prefix, { limit: 100, offset: 0, sortBy: { column: 'name', order: 'desc' } });
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error listing images:', error);
+    return [];
+  }
+}
+
+// Upload file baru ke bucket images
+export async function uploadImageToBucket(file, filename) {
+  try {
+    const path = filename;
+    const { data, error } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file?.type || 'application/octet-stream'
+      });
+    if (error) throw error;
+    return data; // { path, id, ... }
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+}
+
+// Replace/Upsert konten file pada path yang sama
+export async function upsertImageToPath(file, path) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file?.type || 'application/octet-stream'
+      });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error upserting image:', error);
+    throw error;
+  }
+}
+
+// Hapus file berdasarkan path
+export async function deleteImageFromBucket(path) {
+  try {
+    const { error } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .remove([path]);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    throw error;
+  }
+}
+
+// Rename/move file dari fromPath ke toPath
+export async function renameImagePath(fromPath, toPath) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .move(fromPath, toPath);
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error renaming image:', error);
+    throw error;
   }
 }

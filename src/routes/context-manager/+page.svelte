@@ -78,8 +78,6 @@
     }
   }
 
-
-
   // Tabs
   let activeTab = 'rag'; // 'rag' | 'greeting'
   function setActiveTab(tab) {
@@ -296,7 +294,7 @@
       <button class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600 w-full md:w-auto" on:click={() => showForm = true}>
         + {addContextText}
       </button>
-    {:else}
+    {:else if activeTab === 'greeting'}
       <button class="bg-green-500 text-white border-0 px-6 py-3 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-600 w-full md:w-auto" on:click={() => showGreetingForm = true}>
         + {addGreetingText}
       </button>
@@ -379,12 +377,12 @@
             {#if formData.customFields.length > 0}
               <div class="flex flex-col gap-2">
                 {#each formData.customFields as field, index}
-                  <div class="flex items-center gap-2.5 bg-neutral-800 px-3 py-2 rounded border border-neutral-700">
-                    <span class="text-green-500 font-medium text-sm">{field.title}:</span>
-                    <span class="text-gray-200 text-sm flex-1">{field.value}</span>
+                  <div class="flex items-start gap-2.5 bg-neutral-800 px-3 py-2 rounded border border-neutral-700 min-w-0">
+                    <span class="text-green-500 font-medium text-sm flex-shrink-0">{field.title}:</span>
+                    <span class="text-gray-200 text-sm flex-1 break-words overflow-hidden">{field.value}</span>
                     <button 
                       type="button" 
-                      class="bg-transparent border-0 text-red-400 text-base cursor-pointer p-0.5 rounded transition-colors hover:bg-red-400/10"
+                      class="bg-transparent border-0 text-red-400 text-base cursor-pointer p-0.5 rounded transition-colors hover:bg-red-400/10 flex-shrink-0"
                       on:click={() => removeCustomField(index)}
                     >
                       ×
@@ -440,9 +438,9 @@
                   <div class="flex flex-col gap-1.5">
                     <span class="text-gray-400 text-xs">{customFieldsText}:</span>
                     {#each context.customFields as field}
-                      <div class="flex gap-2 bg-neutral-950 px-2.5 py-1.5 rounded border border-neutral-700">
-                        <span class="text-green-500 text-xs font-medium">{field.title}:</span>
-                        <span class="text-gray-200 text-xs">{field.value}</span>
+                      <div class="flex flex-col sm:flex-row gap-1 sm:gap-2 bg-neutral-950 px-2.5 py-1.5 rounded border border-neutral-700 min-w-0">
+                        <span class="text-green-500 text-xs font-medium flex-shrink-0">{field.title}:</span>
+                        <span class="text-gray-200 text-xs break-words overflow-hidden">{field.value}</span>
                       </div>
                     {/each}
                   </div>
@@ -484,7 +482,7 @@
         {/if}
       {/if}
     </div>
-  {:else}
+  {:else if activeTab === 'greeting'}
     <!-- Greeting message tab -->
     {#if showGreetingForm}
       <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={resetGreetingForm} role="dialog" tabindex="-1">
@@ -567,7 +565,7 @@
               </div>
               <div class="text-gray-200 text-sm whitespace-pre-wrap">{g.message}</div>
               <div class="mt-4 flex items-center gap-2">
-                <label class="text-xs text-gray-400">{toggleActiveText}</label>
+                <span class="text-xs text-gray-400">{toggleActiveText}</span>
                 <button class="px-3 py-1 text-xs rounded border {g.is_active ? 'bg-green-500 border-green-500 text-white' : 'bg-neutral-800 border-neutral-700 text-gray-200 hover:bg-neutral-700'}" on:click={() => toggleGreetingActive(g)}>
                   {g.is_active ? activeText : inactiveText}
                 </button>
@@ -581,6 +579,25 @@
 </div>
 
 <style>
+  /* Custom field text wrapping */
+  .break-words {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .overflow-hidden {
+    overflow: hidden;
+  }
+  
+  .min-w-0 {
+    min-width: 0;
+  }
+  
+  .flex-shrink-0 {
+    flex-shrink: 0;
+  }
+
   /* Mobile responsive adjustments */
   @media (max-width: 768px) {
     .text-3xl.md\:text-2xl {

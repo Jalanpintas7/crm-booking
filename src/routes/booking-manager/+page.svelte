@@ -146,6 +146,7 @@
   let endDate = '';
   let viewMode = 'table';
   let searchTerm = '';
+  let sortBy = 'date'; // Kolom yang sedang di-sort: 'date', 'package_name', 'employee', 'total_price', 'status', 'client_name'
   let sortOrder = 'asc';
   let page = 1;
   let perPage = 5;
@@ -272,14 +273,28 @@
     setTimeout(() => showToast = false, 3000);
   }
 
-  $: filteredBookings = !loading ? getFilteredBookings() : [];
+  // Reactive statements dengan dependensi eksplisit untuk memastikan update UI langsung
+  $: filteredBookings = !loading ? getFilteredBookings(bookings, searchTerm, selectedFilter, startDate, endDate, sortBy, sortOrder, defaultStatus) : [];
   $: _forceKanbanRerender = kanbanVersion; // trigger deps
   $: kanbanColumns = !loading ? getKanbanColumns() : getEmptyKanbanColumns();
   $: calendarData = !loading ? getCalendarData() : [];
   $: totalPages = Math.ceil(filteredBookings.length / perPage);
   $: pagedBookings = filteredBookings.slice((page - 1) * perPage, page * perPage);
+  
+  // Variabel untuk tracking perubahan sorting
+  let previousSortBy = sortBy;
+  let previousSortOrder = sortOrder;
+  
+  // Reset halaman ke 1 ketika sorting berubah untuk pengalaman user yang lebih baik
+  $: {
+    if (sortBy !== previousSortBy || sortOrder !== previousSortOrder) {
+      page = 1;
+      previousSortBy = sortBy;
+      previousSortOrder = sortOrder;
+    }
+  }
 
-  function getFilteredBookings() {
+  function getFilteredBookings(bookings, searchTerm, selectedFilter, startDate, endDate, sortBy, sortOrder, defaultStatus) {
     // Pastikan bookings sudah dimuat
     if (!bookings || bookings.length === 0) {
       return [];
@@ -313,11 +328,48 @@
       });
     }
     
-    return filtered.sort((a, b) =>
-      sortOrder === 'asc' ? 
-      new Date(a.date) - new Date(b.date) : 
-      new Date(b.date) - new Date(a.date)
-    );
+    // Terapkan sorting berdasarkan kolom yang dipilih
+    return filtered.sort((a, b) => {
+      let valueA, valueB;
+      
+      switch (sortBy) {
+        case 'client_name':
+          valueA = (a.contact?.name || '').toLowerCase();
+          valueB = (b.contact?.name || '').toLowerCase();
+          break;
+        case 'package_name':
+          valueA = (a.package_name || '').toLowerCase();
+          valueB = (b.package_name || '').toLowerCase();
+          break;
+        case 'employee':
+          valueA = (a.employee?.name || '').toLowerCase();
+          valueB = (b.employee?.name || '').toLowerCase();
+          break;
+        case 'total_price':
+          valueA = parseFloat(a.total_price) || 0;
+          valueB = parseFloat(b.total_price) || 0;
+          break;
+        case 'status':
+          valueA = (a.status || defaultStatus).toLowerCase();
+          valueB = (b.status || defaultStatus).toLowerCase();
+          break;
+        case 'date':
+        default:
+          valueA = new Date(a.date);
+          valueB = new Date(b.date);
+          break;
+      }
+      
+      if (sortBy === 'date' || sortBy === 'total_price') {
+        // Untuk angka dan tanggal
+        return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
+      } else {
+        // Untuk string
+        if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
+        if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
   }
 
   function getKanbanColumns() {
@@ -556,6 +608,9 @@
       await deleteBooking(id);
       bookings = bookings.filter(b => b.id !== id);
       selectedIds = { ...selectedIds, [id]: false };
+      // Pastikan UI ter-refresh sepenuhnya
+      await loadData();
+      kanbanVersion += 1;
       showToastMessage('Booking berhasil dihapus', 'success');
     } catch (err) {
       error = 'Gagal menghapus booking. Silakan coba lagi.';
@@ -577,6 +632,9 @@
         selectedIds = { ...selectedIds, [selectedBooking.id]: false };
         showDeleteConfirm = false;
         selectedBooking = null;
+        // Refresh data agar semua tampilan (table/kanban/calendar) sinkron
+        await loadData();
+        kanbanVersion += 1;
         showToastMessage('Booking berhasil dihapus', 'success');
       } catch (err) {
         error = 'Gagal menghapus booking. Silakan coba lagi.';
@@ -599,6 +657,9 @@
       bookings = bookings.filter(b => !idsNum.includes(b.id));
       selectedIds = {};
       allSelected = false;
+      // Muat ulang data untuk memastikan konsistensi dan memicu re-render penuh
+      await loadData();
+      kanbanVersion += 1;
       showToastMessage(`${ids.length} booking berhasil dihapus`, 'success');
     } catch (err) {
       console.error('Error bulk deleting bookings:', err);
@@ -663,8 +724,15 @@
     }
   }
 
-  function sortByDate() {
-    sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+  function sortData(column) {
+    if (sortBy === column) {
+      // Jika kolom yang sama diklik, toggle order
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      // Jika kolom berbeda, set kolom baru dan default asc
+      sortBy = column;
+      sortOrder = 'asc';
+    }
   }
 
   function nextPage() {
@@ -1322,13 +1390,79 @@
                 <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">
                   <input type="checkbox" checked={pagedBookings.length > 0 && pagedBookings.every(b => !!selectedIds[b.id])} on:change={toggleSelectAll} />
                 </th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{clientNameText}</th>
+                <th on:click={() => sortData('client_name')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{clientNameText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'client_name'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
                 <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{phoneText}</th>
-                <th on:click={sortByDate} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer">{dateText} {sortOrder === 'asc' ? '↑' : '↓'}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{packageNameText}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{employeeText}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{amountText}</th>
-                <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{statusText}</th>
+                <th on:click={() => sortData('date')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{dateText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'date'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
+                <th on:click={() => sortData('package_name')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{packageNameText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'package_name'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
+                <th on:click={() => sortData('employee')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{employeeText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'employee'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
+                <th on:click={() => sortData('total_price')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{amountText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'total_price'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
+                <th on:click={() => sortData('status')} class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors select-none">
+                  <div class="flex items-center justify-between">
+                    <span>{statusText}</span>
+                    <span class="text-xs">
+                      {#if sortBy === 'status'}
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      {:else}
+                        ↕
+                      {/if}
+                    </span>
+                  </div>
+                </th>
                 <th class="bg-gray-950 text-gray-200 px-3 py-4 text-left font-semibold text-sm border-b border-gray-700">{actionsText}</th>
               </tr>
             </thead>
