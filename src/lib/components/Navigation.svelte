@@ -1,9 +1,11 @@
 <script>
   import { page } from '$app/stores';
   import { currentLanguage, translations, toggleLanguage, setLanguage } from '../stores/language.js';
+  import { authStore, logout } from '../stores/auth.js';
   import { Globe, ChevronDown, Check, User } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { getFirstBrand } from '../supabase.js';
+  import { goto } from '$app/navigation';
   
   $: currentPath = $page.url.pathname;
   $: language = $currentLanguage;
@@ -134,6 +136,20 @@
   function t(key) {
     return currentTranslations[key] || key;
   }
+  
+  async function handleLogout() {
+    try {
+      await logout();
+      closeMobileMenu();
+      // Redirect to login page after logout
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+  
   // Brand name from Supabase
   let brandName = 'CRMBooking';
   onMount(async () => {
@@ -241,15 +257,16 @@
             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
           {/if}
         </a>
-        <a 
-          href="/context-manager" 
-          class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/context-manager' ? 'text-gray-200' : ''}"
-        >
-          {contextManagerText}
-          {#if currentPath === '/context-manager'}
-            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
-          {/if}
-        </a>
+                 <a 
+           href="/context-manager" 
+           class="text-gray-400 hover:text-gray-200 text-sm py-2 relative transition-colors duration-200 {currentPath === '/context-manager' ? 'text-gray-200' : ''}"
+         >
+           {contextManagerText}
+           {#if currentPath === '/context-manager'}
+             <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-green-500"></div>
+           {/if}
+         </a>
+
       </div>
     </div>
 
@@ -346,31 +363,31 @@
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-gray-200 text-sm font-semibold mb-0.5 truncate">
-            Tuan Pakya
+            {$authStore.user?.username || 'Pengguna'}
           </div>
           <div class="text-gray-400 text-xs mb-1 truncate">
-            tuanpakya@gmail.com
+            {$authStore.user?.role || 'Admin'}
           </div>
         </div>
       </div>
       
-      <!-- Account Options -->
-      <div class="flex flex-col">
-        <a 
-          href="/" 
-          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/' ? 'text-green-500' : ''}"
-          on:click={closeMobileMenu}
-        >
-          {myAccountText}
-        </a>
-        <a 
-          href="/logout" 
-          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200"
-          on:click={closeMobileMenu}
-        >
-          {logoutText}
-        </a>
-      </div>
+             <!-- Account Options -->
+       <div class="flex flex-col">
+         <a 
+           href="/my-account"
+           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 cursor-pointer w-full text-left"
+           on:click={closeMobileMenu}
+         >
+           {myAccountText}
+         </a>
+         
+         <button 
+           class="text-gray-200 hover:text-red-500 no-underline text-sm py-2.5 transition-colors duration-200 cursor-pointer w-full text-left"
+           on:click={handleLogout}
+         >
+           {logoutText}
+         </button>
+       </div>
       
              <!-- Mobile Navigation (visible only on mobile) -->
        <div class="flex flex-col mt-4 pt-4 border-t border-gray-700 block md:hidden">
@@ -402,13 +419,13 @@
         >
           {settingsText}
         </a>
-        <a 
-          href="/context-manager" 
-          class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/context-manager' ? 'text-green-500' : ''}"
-          on:click={closeMobileMenu}
-        >
-          {contextManagerText}
-        </a>
+                 <a 
+           href="/context-manager" 
+           class="text-gray-200 hover:text-green-500 no-underline text-sm py-2.5 transition-colors duration-200 {currentPath === '/context-manager' ? 'text-green-500' : ''}"
+           on:click={closeMobileMenu}
+         >
+           {contextManagerText}
+         </a>
              </div>
      </div>
    </div>
