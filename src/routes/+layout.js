@@ -1,5 +1,7 @@
 import { browser } from '$app/environment';
 
+export const prerender = true;
+
 export function load() {
   // Only run on client side
   if (!browser) {

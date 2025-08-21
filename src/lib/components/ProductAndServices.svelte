@@ -331,8 +331,9 @@
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Nama Produk/Layanan *</label>
+          <label for="product-name" class="block text-sm font-medium text-gray-300 mb-2">Nama Produk/Layanan *</label>
           <input 
+            id="product-name"
             type="text" 
             bind:value={formData.pakej}
             placeholder="Masukkan nama produk/layanan"
@@ -341,10 +342,11 @@
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Harga *</label>
+          <label for="product-price" class="block text-sm font-medium text-gray-300 mb-2">Harga *</label>
           <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden w-full">
             <span class="bg-neutral-700 text-gray-400 px-3 py-2.5 border-r border-neutral-700">RM</span>
             <input 
+              id="product-price"
               type="number" 
               min="0" 
               step="1000"
@@ -356,10 +358,11 @@
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">URL</label>
+          <label for="product-url" class="block text-sm font-medium text-gray-300 mb-2">URL</label>
           <div class="relative">
             <Link size={16} class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input 
+              id="product-url"
               type="url" 
               bind:value={formData.url}
               placeholder="https://example.com"
@@ -373,7 +376,7 @@
       
       <!-- Services Section -->
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-300 mb-2">Services (Custom Fields)</label>
+        <label for="services-section" class="block text-sm font-medium text-gray-300 mb-2">Services (Custom Fields)</label>
         
         <!-- Input untuk menambah field baru -->
         <div class="bg-neutral-900 border border-neutral-700 rounded-lg p-4 mb-4">

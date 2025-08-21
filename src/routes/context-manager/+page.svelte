@@ -485,8 +485,8 @@
   {:else if activeTab === 'greeting'}
     <!-- Greeting message tab -->
     {#if showGreetingForm}
-      <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={resetGreetingForm} role="dialog" tabindex="-1">
-        <div class="bg-neutral-800 rounded-lg p-8 w-[90%] max-w-2xl border border-neutral-700 max-h-[90vh] overflow-y-auto" on:click|stopPropagation role="document">
+      <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]" on:click={resetGreetingForm} role="dialog" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && resetGreetingForm()}>
+        <div class="bg-neutral-800 rounded-lg p-8 w-[90%] max-w-2xl border border-neutral-700 max-h-[90vh] overflow-y-auto" on:click|stopPropagation role="document" tabindex="-1">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-gray-200 m-0 text-xl">{editingGreeting ? editGreetingText : addGreetingText}</h2>
             <button class="bg-transparent border-0 text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center hover:text-gray-200" on:click={resetGreetingForm}>×</button>

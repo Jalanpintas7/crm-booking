@@ -291,6 +291,9 @@
           <div 
             class="absolute top-full right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl min-w-45 z-50 overflow-hidden"
             on:click|stopPropagation
+            role="menu"
+            aria-label="Language options"
+            tabindex="-1"
           >
             <button 
               type="button"
@@ -340,14 +343,18 @@
         <div 
        class="fixed inset-0 bg-black/20 md:bg-black/10 z-50"
        on:click={closeMobileMenu}
+       on:keydown={(e) => e.key === 'Escape' && closeMobileMenu()}
        role="dialog"
        aria-modal="true"
        aria-label="User account menu"
+       tabindex="-1"
      >
             <div 
          class="profile-modal-container bg-gray-900 rounded-lg p-5 w-70 max-w-[280px] border border-gray-700 shadow-2xl backdrop-blur-sm"
          bind:this={profileModalEl}
          on:click|stopPropagation
+         role="document"
+         tabindex="-1"
        >
       <!-- User Information Section -->
       <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-700">
