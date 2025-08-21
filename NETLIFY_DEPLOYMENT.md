@@ -49,8 +49,26 @@ File `netlify.toml` sudah dikonfigurasi untuk SPA routing.
 - Warning ini tidak menghentikan build, hanya peringatan untuk UX yang lebih baik
 - Aplikasi tetap berfungsi normal
 
+## Troubleshooting
+
+### Error "Encountered dynamic routes"
+- Sudah diperbaiki dengan konfigurasi `adapter-static` dan `prerender: true`
+
+### Error "Not found" saat refresh halaman
+- Sudah diperbaiki dengan `fallback: 'index.html'` di `netlify.toml`
+
+### Error "Unsupported engine" atau "Not compatible with your version of node/npm"
+- **Solusi**: Pastikan menggunakan Node.js versi 20.19 atau lebih tinggi
+- **Netlify**: File `netlify.toml` sudah dikonfigurasi dengan `NODE_VERSION = "20"`
+- **Lokal**: Gunakan `nvm use 20` atau install Node.js versi 20+
+
+### Warning aksesibilitas
+- Warning ini tidak menghentikan build, hanya peringatan untuk UX yang lebih baik
+- Aplikasi tetap berfungsi normal
+
 ## Catatan Penting
 - Aplikasi ini menggunakan SPA (Single Page Application) routing
 - Semua route akan di-redirect ke `index.html`
+- **Requirement**: Node.js versi 20.19+ (karena menggunakan Svelte 5 + Vite 7)
 - Pastikan Supabase project sudah dikonfigurasi dengan benar
 - Test aplikasi setelah deploy untuk memastikan semua fitur berfungsi
