@@ -276,9 +276,9 @@
   }
 
   function formatCurrency(amount) {
-    return new Intl.NumberFormat('id-ID', {
+    return new Intl.NumberFormat('ms-MY', {
       style: 'currency',
-      currency: 'IDR'
+      currency: 'MYR'
     }).format(amount);
   }
 
@@ -343,7 +343,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Harga *</label>
           <div class="inline-flex items-center border border-neutral-700 rounded-md overflow-hidden w-full">
-            <span class="bg-neutral-700 text-gray-400 px-3 py-2.5 border-r border-neutral-700">Rp</span>
+            <span class="bg-neutral-700 text-gray-400 px-3 py-2.5 border-r border-neutral-700">RM</span>
             <input 
               type="number" 
               min="0" 
