@@ -35,7 +35,10 @@
   let loading = false;
   let editingId = null;
   let showCustomFieldsModal = false;
+  let showProductDetailsModal = false;
   let selectedPackage = null;
+  let selectedProductForDetails = null;
+  let productBookings = [];
   let customFields = [];
   let newCustomField = { key: '', value: '', type: 'text' };
   let imageFile = null;
@@ -92,6 +95,12 @@
       
       packages = packagesData.map(pkg => {
         console.log('Processing package:', pkg);
+        console.log('Package services:', pkg.services);
+        console.log('Services type:', typeof pkg.services);
+        console.log('Services keys:', Object.keys(pkg.services || {}));
+        console.log('Services is null?', pkg.services === null);
+        console.log('Services is undefined?', pkg.services === undefined);
+        console.log('Services is empty object?', JSON.stringify(pkg.services) === '{}');
         
         // Handle different possible column names
         const processedPkg = {
@@ -104,13 +113,34 @@
         };
         
         console.log('Processed package:', processedPkg);
+        console.log('Processed services:', processedPkg.services);
+        console.log('Processed services type:', typeof processedPkg.services);
+        console.log('Processed services keys:', Object.keys(processedPkg.services || {}));
+        console.log('Processed services length:', Object.keys(processedPkg.services || {}).length);
         return processedPkg;
       });
       
-             console.log('Final processed packages:', packages);
-       console.log('Packages array length:', packages.length);
-       console.log('First package:', packages[0]);
-     } catch (err) {
+      console.log('Final processed packages:', packages);
+      console.log('Packages array length:', packages.length);
+      console.log('First package:', packages[0]);
+      console.log('First package services:', packages[0]?.services);
+      
+      // Test specific package
+      if (packages.length > 0) {
+        const testPkg = packages[0];
+        console.log('=== TESTING FIRST PACKAGE ===');
+        console.log('Test package services:', testPkg.services);
+        console.log('Test services type:', typeof testPkg.services);
+        console.log('Test services keys:', Object.keys(testPkg.services || {}));
+        console.log('Test services length:', Object.keys(testPkg.services || {}).length);
+        console.log('Test services entries:', Object.entries(testPkg.services || {}));
+        
+        // Test conditional logic
+        console.log('Test: pkg.services exists?', !!testPkg.services);
+        console.log('Test: Object.keys(pkg.services).length > 0?', Object.keys(testPkg.services || {}).length > 0);
+        console.log('Test: pkg.services && Object.keys(pkg.services).length > 0?', testPkg.services && Object.keys(testPkg.services).length > 0);
+      }
+    } catch (err) {
       error = 'Gagal memuat data produk dan layanan. Silakan coba lagi.';
       console.error('Error loading packages:', err);
     } finally {
@@ -217,11 +247,61 @@
     showCustomFieldsModal = true;
   }
 
+  async function openProductDetailsModal(pkg) {
+    console.log('Opening product details modal for:', pkg);
+    
+    selectedProductForDetails = pkg;
+    productBookings = [];
+    
+    try {
+      // Fetch bookings yang menggunakan package ini
+      console.log('Fetching bookings for package:', pkg.pakej);
+      
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          contact_id,
+          date,
+          package_name,
+          total_price,
+          status,
+          services,
+          created_at,
+          contact (
+            name,
+            whatsapp,
+            email
+          )
+        `)
+        .eq('package_name', pkg.pakej)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching bookings:', error);
+      } else {
+        console.log('Bookings found:', bookings);
+        productBookings = bookings || [];
+      }
+      
+    } catch (err) {
+      console.error('Error in openProductDetailsModal:', err);
+    }
+    
+    showProductDetailsModal = true;
+  }
+
   function closeCustomFieldsModal() {
     showCustomFieldsModal = false;
     selectedPackage = null;
     customFields = [];
     newCustomField = { key: '', value: '', type: 'text' };
+  }
+
+  function closeProductDetailsModal() {
+    showProductDetailsModal = false;
+    selectedProductForDetails = null;
+    productBookings = [];
   }
 
   function addCustomField() {
@@ -543,20 +623,13 @@
               </div>
               
               <!-- Services Preview -->
-              {#if Object.keys(pkg.services || {}).length > 0}
-                <div class="flex flex-wrap gap-1 mb-3">
-                  {#each Object.entries(pkg.services).slice(0, 3) as [key, value]}
-                    <span class="bg-neutral-800 text-gray-300 text-xs px-2 py-1 rounded border border-neutral-700">
-                      <strong>{key}:</strong> {String(value)}
-                    </span>
-                  {/each}
-                  {#if Object.keys(pkg.services).length > 3}
-                    <span class="bg-neutral-800 text-gray-400 text-xs px-2 py-1 rounded border border-neutral-700">
-                      +{Object.keys(pkg.services).length - 3} lagi
-                    </span>
-                  {/if}
+              <div class="mb-3">
+                <div class="text-xs text-gray-500">
+                  Klik "Lihat Product" untuk melihat booking dengan custom fields
                 </div>
-              {/if}
+                
+
+              </div>
               
               <!-- Price -->
               <div class="text-xl font-bold text-green-400 mb-3">
@@ -577,6 +650,18 @@
                   </a>
                 </div>
               {/if}
+              
+              <!-- View Product Details Button -->
+              <div class="mb-3">
+                <button 
+                  class="inline-flex items-center gap-1 text-green-400 hover:text-green-300 text-sm cursor-pointer"
+                  on:click={() => openProductDetailsModal(pkg)}
+                  title="Lihat Detail Product"
+                >
+                  <Link size={14} />
+                  Lihat Product
+                </button>
+              </div>
               
               <!-- Actions -->
               <div class="flex items-center gap-2">
@@ -634,15 +719,11 @@
                 </div>
                 
                 <!-- Services Preview -->
-                {#if Object.keys(pkg.services || {}).length > 0}
-                  <div class="flex flex-wrap gap-2 mb-3">
-                    {#each Object.entries(pkg.services) as [key, value]}
-                      <span class="bg-neutral-800 text-gray-300 text-xs px-2 py-1 rounded border border-neutral-700">
-                        <strong>{key}:</strong> {String(value)}
-                      </span>
-                    {/each}
+                <div class="mb-3">
+                  <div class="text-xs text-gray-500">
+                    Klik "Lihat Product" untuk melihat booking dengan custom fields
                   </div>
-                {/if}
+                </div>
                 
                 <!-- URL if available -->
                 {#if pkg.url}
@@ -658,6 +739,18 @@
                     </a>
                   </div>
                 {/if}
+                
+                <!-- View Product Details Button -->
+                <div class="mb-3">
+                  <button 
+                    class="inline-flex items-center gap-1 text-green-400 hover:text-green-300 text-sm cursor-pointer"
+                    on:click={() => openProductDetailsModal(pkg)}
+                    title="Lihat Detail Product"
+                  >
+                    <Link size={14} />
+                    Lihat Product
+                  </button>
+                </div>
                 
                 <!-- Actions -->
                 <div class="flex items-center gap-2">
@@ -794,6 +887,151 @@
             on:click={saveCustomFields}
           >
             Simpan Services
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Product Details Modal -->
+{#if showProductDetailsModal && selectedProductForDetails}
+  <div class="fixed inset-0 bg-black/60 flex justify-center items-center z-[1000] p-5">
+    <div class="bg-neutral-800 rounded-xl border border-neutral-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-semibold text-gray-200">Detail Product - {selectedProductForDetails.pakej}</h3>
+          <button 
+            class="text-gray-400 hover:text-gray-200 transition-colors"
+            on:click={closeProductDetailsModal}
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <!-- Product Basic Info -->
+        <div class="bg-neutral-900 border border-neutral-700 rounded-lg p-4 mb-6">
+          <h4 class="text-lg font-medium text-gray-200 mb-4">Informasi Dasar</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2">Nama Product</label>
+              <p class="text-gray-200 text-lg font-semibold">{selectedProductForDetails.pakej}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2">Harga</label>
+              <p class="text-green-400 text-xl font-bold">{formatCurrency(selectedProductForDetails.harga)}</p>
+            </div>
+            {#if selectedProductForDetails.url}
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-300 mb-2">URL</label>
+                <a 
+                  href={selectedProductForDetails.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="text-blue-400 hover:text-blue-300 text-sm break-all"
+                >
+                  {selectedProductForDetails.url}
+                </a>
+              </div>
+            {/if}
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-300 mb-2">Tanggal Dibuat</label>
+              <p class="text-gray-200">{formatDate(selectedProductForDetails.created_at)}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bookings dengan Custom Fields Section -->
+        <div class="bg-neutral-900 border border-neutral-700 rounded-lg p-4 mb-6">
+          <h4 class="text-lg font-medium text-gray-200 mb-4">Bookings dengan Custom Fields</h4>
+          
+          <!-- Debug Info -->
+          <div class="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3 mb-4">
+            <div class="text-yellow-400 text-sm">
+              <strong>Debug Info:</strong><br>
+              Total Bookings: {productBookings.length}<br>
+              Package Name: {selectedProductForDetails.pakej}
+            </div>
+          </div>
+          
+          {#if productBookings.length > 0}
+            <div class="space-y-4">
+              {#each productBookings as booking}
+                <div class="bg-neutral-800 border border-neutral-700 rounded-lg p-4">
+                  <!-- Booking Info -->
+                  <div class="flex items-center justify-between mb-3">
+                    <div>
+                      <h5 class="text-sm font-medium text-gray-200">Booking #{booking.id}</h5>
+                      <p class="text-xs text-gray-400">
+                        {booking.contact?.name || 'N/A'} • 
+                        {booking.date ? new Date(booking.date).toLocaleDateString('id-ID') : 'N/A'} • 
+                        <span class="px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-400">
+                          {booking.status}
+                        </span>
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-medium text-green-400">
+                        Rp {(booking.total_price || 0).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <!-- Custom Fields -->
+                  {#if booking.services && Object.keys(booking.services).length > 0}
+                    <div class="border-t border-neutral-700 pt-3">
+                      <h6 class="text-xs font-medium text-gray-300 mb-2">Custom Fields:</h6>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {#each Object.entries(booking.services) as [key, value]}
+                          <div class="bg-neutral-900 border border-neutral-600 rounded-lg p-3">
+                            <div class="text-xs font-medium text-gray-400 mb-1">{key}</div>
+                            <div class="text-sm text-gray-200">
+                              {#if typeof value === 'boolean'}
+                                <span class="px-2 py-1 rounded text-xs {value ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                                  {value ? 'Ya' : 'Tidak'}
+                                </span>
+                              {:else if typeof value === 'number'}
+                                <span class="text-blue-400 font-medium">{value}</span>
+                              {:else}
+                                <span class="text-gray-200">{value || '-'}</span>
+                              {/if}
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="border-t border-neutral-700 pt-3">
+                      <p class="text-xs text-gray-500">Tidak ada custom fields untuk booking ini</p>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="text-center py-8">
+              <div class="text-gray-400 text-sm mb-2">Belum ada booking untuk produk ini</div>
+              <p class="text-xs text-gray-500">Custom fields akan muncul ketika ada booking yang menggunakan produk ini</p>
+            </div>
+          {/if}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-3 justify-end">
+          <button 
+            class="bg-neutral-600 text-white border-0 px-6 py-2.5 rounded text-sm cursor-pointer transition-colors hover:bg-neutral-700"
+            on:click={closeProductDetailsModal}
+          >
+            Tutup
+          </button>
+          <button 
+            class="bg-green-500 text-white border-0 px-6 py-2.5 rounded text-sm cursor-pointer transition-colors hover:bg-green-600"
+            on:click={() => {
+              closeProductDetailsModal();
+              openCustomFieldsModal(selectedProductForDetails);
+            }}
+          >
+            Edit Custom Fields
           </button>
         </div>
       </div>

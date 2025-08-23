@@ -257,6 +257,13 @@
         packages: packagesData?.length || 0
       });
       
+      // Debug: Log sample booking data
+      if (bookingsData && bookingsData.length > 0) {
+        console.log('📋 Sample booking data:', bookingsData[0]);
+        console.log('📋 Sample booking services:', bookingsData[0].services);
+        console.log('📋 Sample booking services type:', typeof bookingsData[0].services);
+      }
+      
       // Validate data
       if (!Array.isArray(bookingsData)) {
         console.warn('Bookings data is not an array:', bookingsData);
@@ -468,7 +475,24 @@
     if (!rawBooking) return rawBooking;
     const contact = contacts.find((c) => c.id === rawBooking.contact_id) || null;
     const employee = employees.find((e) => e.id === rawBooking.employee_id) || null;
-    return { ...rawBooking, contact, employee };
+    
+    // Parse services JSONB jika perlu
+    let parsedServices = rawBooking.services;
+    if (typeof rawBooking.services === 'string') {
+      try {
+        parsedServices = JSON.parse(rawBooking.services);
+      } catch (e) {
+        console.warn('Gagal parse services JSON:', e);
+        parsedServices = {};
+      }
+    }
+    
+    return { 
+      ...rawBooking, 
+      contact, 
+      employee,
+      services: parsedServices || {}
+    };
   }
 
   function setupRealtime() {
@@ -746,7 +770,11 @@
   }
 
   function openViewModal(booking) {
-    selectedBooking = booking;
+    // Gunakan data yang sudah di-enrich
+    selectedBooking = enrichBooking(booking);
+    console.log('📋 Booking data untuk view modal:', selectedBooking);
+    console.log('📋 Services data:', selectedBooking.services);
+    console.log('📋 Custom fields data:', selectedBooking.custom_fields);
     showViewModal = true;
   }
 
@@ -1347,8 +1375,23 @@
             </div>
           </div>
           
-          <!-- Custom Fields Section for View -->
-          {#if selectedBooking.custom_fields && Object.keys(selectedBooking.custom_fields).length > 0}
+          <!-- Services Section for View -->
+          {#if selectedBooking.services && Object.keys(selectedBooking.services).length > 0}
+            <div class="bg-gray-950 border border-gray-700 rounded-lg p-4">
+              <h3 class="text-sm font-medium text-gray-200 mb-3">Custom Fields dari Paket</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {#each Object.entries(selectedBooking.services) as [key, value]}
+                  <div class="flex flex-col gap-2">
+                    <span class="font-semibold text-gray-400 capitalize">{key}:</span>
+                    <span class="text-gray-200">{value || 'Tidak ada nilai'}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+          
+          <!-- Fallback: Custom Fields Section for View (if services is empty) -->
+          {#if (!selectedBooking.services || Object.keys(selectedBooking.services).length === 0) && selectedBooking.custom_fields && Object.keys(selectedBooking.custom_fields).length > 0}
             <div class="bg-gray-950 border border-gray-700 rounded-lg p-4">
               <h3 class="text-sm font-medium text-gray-200 mb-3">Custom Fields dari Paket</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
