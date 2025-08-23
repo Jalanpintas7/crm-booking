@@ -172,14 +172,16 @@
         pakej: formData.pakej,
         harga: parseFloat(formData.harga) || 0,
         url: formData.url,
-        services: processedServices
+        services: processedServices,
+        created_at: new Date().toISOString() // Tambahkan timestamp
       };
 
       if (editingId && editingId !== 'new') {
         await updatePricePackage(editingId, packageData);
         showNotificationModal('Produk/Layanan berjaya dikemas kini!', 'success');
       } else {
-        await createPricePackage(packageData);
+        const newPackage = await createPricePackage(packageData);
+        console.log('New package created:', newPackage);
         showNotificationModal('Produk/Layanan berjaya ditambah!', 'success');
       }
 
@@ -255,14 +257,16 @@
         }
       });
 
-      await updatePricePackage(selectedPackage.id, {
-        services: processedServices
+      // Update package dengan services yang baru
+      const updatedPackage = await updatePricePackage(selectedPackage.id, {
+        services: processedServices,
+        updated_at: new Date().toISOString() // Tambahkan timestamp update
       });
 
       // Update local data
       const index = packages.findIndex(p => p.id === selectedPackage.id);
       if (index !== -1) {
-        packages[index].services = processedServices;
+        packages[index] = { ...packages[index], ...updatedPackage };
         packages = [...packages];
       }
 

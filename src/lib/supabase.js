@@ -428,14 +428,19 @@ export async function createBooking(bookingData) {
   const gmtPlus7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
   
   const formattedData = {
-    ...bookingData,
-    // created_at sebagai text dengan timezone GMT+7
-    created_at: gmtPlus7.toISOString().replace('Z', '+07:00'),
-    // date tetap sebagai timestamp without timezone tapi dalam format yang benar
+    contact_id: bookingData.contact_id,
+    employee_id: bookingData.employee_id || null,
     date: bookingData.date,
-    // status default 'Akan Datang' jika tidak ada
-    status: bookingData.status || 'Akan Datang'
+    package_name: bookingData.package_name,
+    total_price: bookingData.total_price || 0,
+    status: bookingData.status || 'Akan Datang',
+    services: bookingData.custom_fields || {}, // Gunakan services bukan custom_fields
+    package_id: bookingData.package_id || null,
+    // created_at sebagai text dengan timezone GMT+7
+    created_at: gmtPlus7.toISOString().replace('Z', '+07:00')
   };
+
+  console.log('Creating booking with formatted data:', formattedData);
 
   const { data, error } = await supabase
     .from('bookings')
@@ -456,11 +461,17 @@ export async function createBooking(bookingData) {
 export async function updateBooking(id, bookingData) {
   // Format data untuk update sesuai struktur SQL baru
   const formattedData = {
-    ...bookingData
-    // Tidak perlu mengubah created_at karena itu hanya di-set saat create
-    // date tetap dalam format yang diterima database
-    // status bisa diupdate jika diperlukan
+    contact_id: bookingData.contact_id,
+    employee_id: bookingData.employee_id || null,
+    date: bookingData.date,
+    package_name: bookingData.package_name,
+    total_price: bookingData.total_price || 0,
+    status: bookingData.status || 'Akan Datang',
+    services: bookingData.custom_fields || {}, // Gunakan services bukan custom_fields
+    package_id: bookingData.package_id || null
   };
+
+  console.log('Updating booking with formatted data:', formattedData);
 
   const { data, error } = await supabase
     .from('bookings')
@@ -637,13 +648,32 @@ export async function getPricePackages() {
             console.log(`Table ${tableName} not accessible:`, altErr.message);
           }
         }
+        
+        // If no alternative tables found, return empty array
+        console.log('No alternative tables found, returning empty array');
+        return [];
       }
       
+      // For other errors, return empty array
       return [];
     }
     
     console.log('Successfully fetched price packages:', data);
-    return data || [];
+    
+    // Ensure all packages have required fields
+    const processedData = (data || []).map(pkg => ({
+      id: pkg.id,
+      pakej: pkg.pakej || pkg.name || pkg.package_name || pkg.title || '',
+      harga: pkg.harga || pkg.price || pkg.cost || 0,
+      url: pkg.url || pkg.link || pkg.website || '',
+      services: pkg.services || pkg.details || pkg.attributes || {},
+      created_at: pkg.created_at || pkg.created || new Date().toISOString(),
+      updated_at: pkg.updated_at || pkg.updated || null
+    }));
+    
+    console.log('Processed price packages:', processedData);
+    return processedData;
+    
   } catch (err) {
     console.error('Unexpected error in getPricePackages:', err);
     return [];
@@ -651,30 +681,94 @@ export async function getPricePackages() {
 }
 
 export async function createPricePackage(packageData) {
-  const { data, error } = await supabase
-    .from('price_package')
-    .insert([packageData])
-    .select();
-  
-  if (error) {
-    console.error('Error creating price package:', error);
+  try {
+    console.log('Creating price package with data:', packageData);
+    
+    // Ensure data structure is correct
+    const insertData = {
+      pakej: packageData.pakej || '',
+      harga: packageData.harga || 0,
+      url: packageData.url || '',
+      services: packageData.services || {},
+      created_at: packageData.created_at || new Date().toISOString()
+    };
+    
+    console.log('Inserting price package:', insertData);
+    
+    const { data, error } = await supabase
+      .from('price_package')
+      .insert([insertData])
+      .select();
+    
+    if (error) {
+      console.error('Error creating price package:', error);
+      throw error;
+    }
+    
+    console.log('Price package created successfully:', data);
+    
+    // Return processed data
+    const result = data[0];
+    return {
+      id: result.id,
+      pakej: result.pakej || result.name || result.package_name || result.title || '',
+      harga: result.harga || result.price || result.cost || 0,
+      url: result.url || result.link || result.website || '',
+      services: result.services || result.details || result.attributes || {},
+      created_at: result.created_at || result.created || new Date().toISOString(),
+      updated_at: result.updated_at || result.updated || null
+    };
+    
+  } catch (error) {
+    console.error('Error in createPricePackage:', error);
     throw error;
   }
-  return data[0];
 }
 
 export async function updatePricePackage(id, packageData) {
-  const { data, error } = await supabase
-    .from('price_package')
-    .update(packageData)
-    .eq('id', id)
-    .select();
-  
-  if (error) {
-    console.error('Error updating price package:', error);
+  try {
+    console.log('Updating price package with ID:', id, 'and data:', packageData);
+    
+    // Ensure data structure is correct
+    const updateData = {
+      pakej: packageData.pakej || '',
+      harga: packageData.harga || 0,
+      url: packageData.url || '',
+      services: packageData.services || {},
+      updated_at: packageData.updated_at || new Date().toISOString()
+    };
+    
+    console.log('Updating price package with data:', updateData);
+    
+    const { data, error } = await supabase
+      .from('price_package')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Error updating price package:', error);
+      throw error;
+    }
+    
+    console.log('Price package updated successfully:', data);
+    
+    // Return processed data
+    const result = data[0];
+    return {
+      id: result.id,
+      pakej: result.pakej || result.name || result.package_name || result.title || '',
+      harga: result.harga || result.price || result.cost || 0,
+      url: result.url || result.link || result.website || '',
+      services: result.services || result.details || result.attributes || {},
+      created_at: result.created_at || result.created || new Date().toISOString(),
+      updated_at: result.updated_at || result.updated || new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('Error in updatePricePackage:', error);
     throw error;
   }
-  return data[0];
 }
 
 export async function deletePricePackage(id) {

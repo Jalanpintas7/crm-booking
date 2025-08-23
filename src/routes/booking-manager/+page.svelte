@@ -174,7 +174,9 @@
     date: '',
     package_name: '',
     total_price: '',
-    status: ''
+    status: '',
+    custom_fields: {}, // Tambahkan field untuk custom fields
+    package_id: '' // Tambahkan field untuk menyimpan ID package
   };
 
   // Set default status from database colors
@@ -238,6 +240,8 @@
       loading = true;
       error = null;
       
+      console.log('Loading data...');
+      
       // Load all data in parallel
       const [bookingsData, contactsData, employeesData, packagesData] = await Promise.all([
         getBookings(),
@@ -246,13 +250,53 @@
         getPricePackages()
       ]);
       
-      bookings = bookingsData;
-      contacts = contactsData;
-      employees = employeesData;
-      pricePackages = packagesData;
+      console.log('Data loaded:', {
+        bookings: bookingsData?.length || 0,
+        contacts: contactsData?.length || 0,
+        employees: employeesData?.length || 0,
+        packages: packagesData?.length || 0
+      });
+      
+      // Validate data
+      if (!Array.isArray(bookingsData)) {
+        console.warn('Bookings data is not an array:', bookingsData);
+        bookings = [];
+      } else {
+        bookings = bookingsData;
+      }
+      
+      if (!Array.isArray(contactsData)) {
+        console.warn('Contacts data is not an array:', contactsData);
+        contacts = [];
+      } else {
+        contacts = contactsData;
+      }
+      
+      if (!Array.isArray(employeesData)) {
+        console.warn('Employees data is not an array:', employeesData);
+        employees = [];
+      } else {
+        employees = employeesData;
+      }
+      
+      if (!Array.isArray(packagesData)) {
+        console.warn('Price packages data is not an array:', packagesData);
+        pricePackages = [];
+      } else {
+        pricePackages = packagesData;
+      }
+      
+      console.log('Data validation completed');
+      
     } catch (err) {
       error = 'Gagal memuat data. Silakan coba lagi.';
       console.error('Error loading data:', err);
+      
+      // Set empty arrays as fallback
+      bookings = [];
+      contacts = [];
+      employees = [];
+      pricePackages = [];
     } finally {
       loading = false;
     }
@@ -569,17 +613,32 @@
       try {
         isSubmitting = true;
         const totalPriceNum = parseFloat(formData.total_price);
+        
+        // Cari package yang dipilih untuk mendapatkan ID dan custom fields
+        const selectedPackage = pricePackages.find(p => p.pakej === formData.package_name);
+        
+        if (!selectedPackage) {
+          throw new Error('Paket yang dipilih tidak ditemukan. Silakan pilih paket yang valid.');
+        }
+        
         const bookingData = {
           contact_id: formData.contact_id,
           employee_id: formData.employee_id || null,
           date: formData.date,
           package_name: formData.package_name,
-          total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : 0,
-          status: formData.status || defaultStatus
+          total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : selectedPackage.harga || 0,
+          status: formData.status || defaultStatus,
+          custom_fields: formData.custom_fields || {},
+          package_id: selectedPackage.id // Pastikan package_id terisi
         };
         
+        console.log('Creating booking with data:', bookingData);
+        console.log('Selected package:', selectedPackage);
+        
         const newBooking = await createBooking(bookingData);
-        bookings = [newBooking, ...bookings];
+        console.log('New booking created:', newBooking);
+        
+        // Refresh data untuk memastikan UI ter-update
         await loadData();
         
         // Reset form
@@ -589,17 +648,21 @@
           date: '', 
           package_name: '', 
           total_price: '',
-          status: defaultStatus
+          status: defaultStatus,
+          custom_fields: {},
+          package_id: ''
         };
         showForm = false;
         showToastMessage('Booking berhasil ditambah', 'success');
       } catch (err) {
         error = 'Gagal menambah booking. Silakan coba lagi.';
         console.error('Error adding booking:', err);
-        showToastMessage('Gagal menambah booking', 'error');
+        showToastMessage('Gagal menambah booking: ' + err.message, 'error');
       } finally {
         isSubmitting = false;
       }
+    } else {
+      showToastMessage('Mohon lengkapi semua field yang diperlukan', 'error');
     }
   }
 
@@ -688,7 +751,25 @@
   }
 
   function openEditModal(booking) {
-    selectedBooking = { ...booking };
+    // Cari package yang terkait untuk memastikan custom fields ter-load
+    const relatedPackage = pricePackages.find(p => p.pakej === booking.package_name);
+    
+    // Merge custom fields dari paket (sebagai default) dengan custom fields yang sudah tersimpan di booking
+    const mergedCustomFields = { 
+      ...(relatedPackage?.services || {}), // Default values from the package
+      ...(booking.services || {})          // Overwrite with actual values from the booking if they exist
+    };
+
+    selectedBooking = { 
+      ...booking,
+      custom_fields: mergedCustomFields
+    };
+    
+    // Jika ada package yang terkait, pastikan package_id terisi
+    if (relatedPackage) {
+      selectedBooking.package_id = relatedPackage.id;
+    }
+    
     showEditModal = true;
   }
 
@@ -701,24 +782,39 @@
     try {
       isSubmitting = true;
       const totalPriceNum = parseFloat(selectedBooking.total_price);
+      
+      // Cari package yang dipilih untuk mendapatkan ID
+      const selectedPackage = pricePackages.find(p => p.pakej === selectedBooking.package_name);
+      
+      if (!selectedPackage) {
+        throw new Error('Paket yang dipilih tidak ditemukan. Silakan pilih paket yang valid.');
+      }
+      
       const updatedData = {
         contact_id: selectedBooking.contact_id,
         employee_id: selectedBooking.employee_id || null,
         date: selectedBooking.date,
         package_name: selectedBooking.package_name,
-        total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : 0,
-        status: selectedBooking.status || defaultStatus
+        total_price: Number.isFinite(totalPriceNum) ? totalPriceNum : selectedPackage.harga || 0,
+        status: selectedBooking.status || defaultStatus,
+        custom_fields: selectedBooking.custom_fields || {},
+        package_id: selectedPackage.id // Pastikan package_id terisi
       };
       
+      console.log('Updating booking with data:', updatedData);
+      console.log('Selected package:', selectedPackage);
+      
       const updatedBooking = await updateBooking(selectedBooking.id, updatedData);
-      bookings = bookings.map(b => b.id === selectedBooking.id ? updatedBooking : b);
+      console.log('Booking updated:', updatedBooking);
+      
+      // Refresh data untuk memastikan UI ter-update
       await loadData();
       showEditModal = false;
       showToastMessage('Booking berhasil diperbarui', 'success');
     } catch (err) {
       error = 'Gagal memperbarui booking. Silakan coba lagi.';
       console.error('Error updating booking:', err);
-      showToastMessage('Gagal memperbarui booking', 'error');
+      showToastMessage('Gagal memperbarui booking: ' + err.message, 'error');
     } finally {
       isSubmitting = false;
     }
@@ -1054,7 +1150,25 @@
               <select id="newPackageName" bind:value={formData.package_name} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors"
                 on:change={() => {
                   const selected = pricePackages.find((p) => p.pakej === formData.package_name);
-                  formData.total_price = selected ? String(selected.harga ?? 0) : formData.total_price;
+                  if (selected) {
+                    formData.total_price = String(selected.harga ?? 0);
+                    formData.package_id = selected.id;
+                    // Update custom fields when package is selected
+                    if (selected.services && Object.keys(selected.services).length > 0) {
+                      // Buat copy dari services untuk custom fields
+                      const customFieldsCopy = {};
+                      Object.entries(selected.services).forEach(([key, value]) => {
+                        customFieldsCopy[key] = typeof value === 'string' ? value : String(value);
+                      });
+                      formData.custom_fields = customFieldsCopy;
+                    } else {
+                      formData.custom_fields = {};
+                    }
+                  } else {
+                    formData.total_price = '';
+                    formData.package_id = '';
+                    formData.custom_fields = {};
+                  }
                 }}
               >
                 <option value="">{choosePackageText}</option>
@@ -1079,6 +1193,26 @@
               </select>
             </div>
           </div>
+          
+          <!-- Custom Fields Section -->
+          {#if formData.package_name && Object.keys(formData.custom_fields).length > 0}
+            <div class="bg-gray-950 border border-gray-700 rounded-lg p-4">
+              <h3 class="text-sm font-medium text-gray-200 mb-3">Custom Fields dari Paket</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {#each Object.entries(formData.custom_fields) as [key, value]}
+                  <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-gray-400 capitalize">{key}</label>
+                    <input 
+                      type="text" 
+                      bind:value={formData.custom_fields[key]}
+                      placeholder="Masukkan nilai untuk {key}"
+                      class="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
+                    />
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
           
           <div class="flex gap-3 justify-end mt-2.5">
             <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showForm = false}>{cancelText}</button>
@@ -1212,6 +1346,21 @@
               <!-- Empty space for alignment -->
             </div>
           </div>
+          
+          <!-- Custom Fields Section for View -->
+          {#if selectedBooking.custom_fields && Object.keys(selectedBooking.custom_fields).length > 0}
+            <div class="bg-gray-950 border border-gray-700 rounded-lg p-4">
+              <h3 class="text-sm font-medium text-gray-200 mb-3">Custom Fields dari Paket</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {#each Object.entries(selectedBooking.custom_fields) as [key, value]}
+                  <div class="flex flex-col gap-2">
+                    <span class="font-semibold text-gray-400 capitalize">{key}:</span>
+                    <span class="text-gray-200">{value || 'Tidak ada nilai'}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
           <div class="flex gap-3 justify-end mt-2.5">
             <button class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" on:click={() => { showViewModal = false; openEditModal(selectedBooking); }}>{editText}</button>
             <button class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showViewModal = false}>{closeText}</button>
@@ -1261,7 +1410,25 @@
               <select id="editPackageName" bind:value={selectedBooking.package_name} required class="bg-gray-950 border border-gray-700 rounded-md px-3 py-3 text-gray-200 text-sm cursor-pointer focus:outline-none focus:border-green-500 transition-colors"
                 on:change={() => {
                   const selected = pricePackages.find((p) => p.pakej === selectedBooking.package_name);
-                  selectedBooking.total_price = selected ? String(selected.harga ?? 0) : selectedBooking.total_price;
+                  if (selected) {
+                    selectedBooking.total_price = String(selected.harga ?? 0);
+                    selectedBooking.package_id = selected.id;
+                    // Update custom fields when package is selected
+                    if (selected.services && Object.keys(selected.services).length > 0) {
+                      // Buat copy dari services untuk custom fields
+                      const customFieldsCopy = {};
+                      Object.entries(selected.services).forEach(([key, value]) => {
+                        customFieldsCopy[key] = typeof value === 'string' ? value : String(value);
+                      });
+                      selectedBooking.custom_fields = customFieldsCopy;
+                    } else {
+                      selectedBooking.custom_fields = {};
+                    }
+                  } else {
+                    selectedBooking.total_price = '';
+                    selectedBooking.package_id = '';
+                    selectedBooking.custom_fields = {};
+                  }
                 }}
               >
                 <option value="">{choosePackageText}</option>
@@ -1286,6 +1453,26 @@
               </select>
             </div>
           </div>
+          
+          <!-- Custom Fields Section for Edit -->
+          {#if selectedBooking.package_name && selectedBooking.custom_fields && Object.keys(selectedBooking.custom_fields).length > 0}
+            <div class="bg-gray-950 border border-gray-700 rounded-lg p-4">
+              <h3 class="text-sm font-medium text-gray-200 mb-3">Custom Fields dari Paket</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {#each Object.entries(selectedBooking.custom_fields) as [key, value]}
+                  <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-gray-400 capitalize">{key}</label>
+                    <input 
+                      type="text" 
+                      bind:value={selectedBooking.custom_fields[key]}
+                      placeholder="Masukkan nilai untuk {key}"
+                      class="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-gray-200 text-sm focus:outline-none focus:border-green-500 transition-colors"
+                    />
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
           <div class="flex gap-3 justify-end mt-2.5">
             <button type="button" class="bg-none border border-gray-700 text-gray-400 px-6 py-3 rounded-md text-sm hover:border-green-500 hover:text-green-500 transition-colors" on:click={() => showEditModal = false}>{cancelText}</button>
             <button type="submit" class="bg-green-500 text-white border-none px-6 py-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors" disabled={isSubmitting}>
